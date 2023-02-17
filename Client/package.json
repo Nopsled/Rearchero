@@ -1,0 +1,17 @@
+{
+  "name": "playground",
+  "main": "index.ts",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "frida-compile -o agent.js -w index.ts",
+    "attach": "run() { frida -U \"$1\" -l agent.js }; run",
+    "spawn": "run() { frida -U -f \"$1\" -l agent.js }; run"
+  },
+  "devDependencies": {
+    "@types/frida-gum": "latest",
+    "@types/node": "latest",
+    "frida-il2cpp-bridge": "latest",
+    "frida-compile": "^10.2.4"
+  }
+}
