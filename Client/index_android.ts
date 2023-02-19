@@ -1,18 +1,16 @@
 import "frida-il2cpp-bridge";
-// sudo frida -l _.js "Archero" --runtime=v8
-
 
 
 Il2Cpp.perform(() => {
 
-    console.log("[Agent]: Injected and rebuilt");
+    console.log("[Agent]: Injected and rebuilded");
 
-
-    // const AssemblyCSharp = Il2Cpp.Domain.assembly("Assembly-CSharp").image;
+    const AssemblyCSharp = Il2Cpp.Domain.assembly("Assembly-CSharp").image;
+    const AssemblyUnityWebRequestModule = Il2Cpp.Domain.assembly("UnityEngine.UnityWebRequestModule").image;
+    const AssemblyMsCorLib = Il2Cpp.Domain.assembly("mscorlib").image;
     // const AssemblyHabbyMail = Il2Cpp.Domain.assembly("HabbyMailLib").image;
     // const AssemblyHabbyTool = Il2Cpp.Domain.assembly("HabbyToolLib").image;
     // const AssemblyLib = Il2Cpp.Domain.assembly("lib").image;
-    // const AssemblyUnityWebRequestModule = Il2Cpp.Domain.assembly("UnityEngine.UnityWebRequestModule").image;
     // const AssemblyCoreModule = Il2Cpp.Domain.assembly("UnityEngine.CoreModule").image;
     // //const AssemblyLibA = Il2Cpp.Domain.assembly("lib").image;
 
@@ -20,11 +18,10 @@ Il2Cpp.perform(() => {
     // const JsonObject = AssemblyHabbyTool.class("Habby.Tool.JsonObject");
     // const RequestPathObjectBase = AssemblyHabbyTool.class("Habby.Tool.Http.Tool.RequestPathObjectBase");
 
-    // const NetConfig = AssemblyCSharp.class("Dxx.Net.NetConfig");
-    // const NetManager = AssemblyCSharp.class("Dxx.Net.NetManager");
-    // const NetResponse = AssemblyCSharp.class("Dxx.Net.NetResponse");
-    // const CCommonRespMsg = AssemblyCSharp.class("GameProtocol.CCommonRespMsg");
-    // const HTTPSendClient = AssemblyCSharp.class("HTTPSendClient");
+    const NetConfig = AssemblyCSharp.class("Dxx.Net.NetConfig");
+    const NetManager = AssemblyCSharp.class("Dxx.Net.NetManager");
+    const NetResponse = AssemblyCSharp.class("Dxx.Net.NetResponse");
+    // const CCommonRespMsg = AssemblyCSharp.class("GameProtocol.CCommonRespMsg");;
 
     // const Debug = AssemblyCoreModule.class("UnityEngine.Debug");
 
@@ -33,13 +30,19 @@ Il2Cpp.perform(() => {
     // const UpdateManager = AssemblyLib.class("Habby.UpdateTool.UpdateManager");
 
 
-    // const CertificateHandler = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.CertificateHandler");
-    // const UnityWebRequest = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.UnityWebRequest");
-    // const DownloadHandler = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.DownloadHandler");
-    // const UploadHandler = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.UploadHandler");
+    const CertificateHandler = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.CertificateHandler");
+    const UnityWebRequest = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.UnityWebRequest");
+    const DownloadHandler = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.DownloadHandler");
+    const UploadHandler = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.UploadHandler");
+
+    const HTTPSendClient = AssemblyCSharp.class("HTTPSendClient")
+    //const Encoding = AssemblyMsCorLib.class("Encoding")
+    const SHA256 = AssemblyMsCorLib.class("System.Security.Cryptography.SHA256")
+    const HashAlgorithm = AssemblyMsCorLib.class("System.Security.Cryptography.HashAlgorithm")
+    const RSA = AssemblyMsCorLib.class("System.Security.Cryptography.RSA")
 
 
-    // //const HttpManager = AssemblyHabbyTool.class("Habby.Tool.Http.HttpManager");
+    // const HttpManager = AssemblyHabbyTool.class("Habby.Tool.Http.HttpManager");
     // const DownLoadManager = AssemblyHabbyTool.class("Habby.DownLoad.DownLoadManager");
     // const DownLoader = AssemblyHabbyTool.class("Habby.DownLoad.DownLoader");
 
@@ -62,12 +65,118 @@ Il2Cpp.perform(() => {
     // const MailRequestPath = AssemblyHabbyMail.class("Habby.Mail.MailRequestPath");
     // const MailSetting = AssemblyHabbyMail.class("Habby.Mail.MailSetting");
     // const StoreChannel = AssemblyHabbyMail.class("Habby.Mail.StoreChannel");
-    //const HabbyClient = AssemblyCSharp.class("HabbyClient");
+    // const HabbyClient = AssemblyCSharp.class("HabbyClient");
 
     //const CustomBinaryWriter = AssemblyCSharp.class("CustomBinaryWriter");
 
     // Not interesting classes
     // const Http = AssemblyCSharp.class("Habby.Archero.Network.Http");
+
+
+    // CertificateHandler.methods.forEach((method => {
+    //     CertificateHandler.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[CertificateHandler::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
+    // const DownloadHandlerIgnored = [
+    //     "get_data",
+    //     "Dispose"
+    // ]
+    // DownloadHandler.methods.forEach((method => {
+    //     if (DownloadHandlerIgnored.includes(method.name)) return;
+    //     DownloadHandler.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[DownloadHandler::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
+    UploadHandler.methods.forEach((method => {
+        UploadHandler.method(method.name).implementation = function (this: any, ...args: any[]) {
+            console.log("[UploadHandler::" + method.name + "]: " + args.toString());
+            return this.method(method.name).invoke(...args);
+        }
+    }));
+    const UnityWebRequestIgnored = [
+        "get_isDone",
+        "get_timeout",
+        "Dispose",
+        "Abort",
+        "get_error"
+    ]
+    UnityWebRequest.methods.forEach((method => {
+        if (UnityWebRequestIgnored.includes(method.name)) return;
+        UnityWebRequest.method(method.name).implementation = function (this: any, ...args: any[]) {
+            console.log("[UnityWebRequest::" + method.name + "]: " + args.toString());
+            return this.method(method.name).invoke(...args);
+        }
+    }));
+    const HTTPSendClientIgnored = [
+        "StartSend",
+        "isTimeOut",
+        "get_timeout",
+        "get_starttime",
+        "check_done",
+        "get_IsCache"
+    ]
+    HTTPSendClient.methods.forEach((method => {
+        if (HTTPSendClientIgnored.includes(method.name)) return;
+
+        HTTPSendClient.method(method.name).implementation = function (this: any, ...args: any[]) {
+            console.log("[HTTPSendClient::" + method.name + "]: " + args.toString());
+        return this.method(method.name).invoke(...args);
+        }
+    }));
+
+
+    SHA256.methods.forEach((method => {
+        SHA256.method(method.name).implementation = function (this: any, ...args: any[]) {
+            console.log("[SHA256::" + method.name + "]: " + args.toString());
+            return this.method(method.name).invoke(...args);
+        }
+    }));
+    HashAlgorithm.methods.forEach((method => {
+        HashAlgorithm.method(method.name).implementation = function (this: any, ...args: any[]) {
+            console.log("[HashAlgorithm::" + method.name + "]: " + args.toString());
+            return this.method(method.name).invoke(...args);
+        }
+    }));
+    RSA.methods.forEach((method =>  {
+        RSA.method(method.name).implementation = function (this: any, ...args: any[]) {
+            console.log("[RSA::" + method.name + "]: " + args.toString());
+            return this.method(method.name).invoke(...args);
+        }
+    }));
+
+    NetConfig.methods.forEach((method => {
+        NetConfig.method(method.name).implementation = function (this: any, ...args: any[]) {
+            console.log("[NetConfig::" + method.name + "]: " + args.toString());
+            return this.method(method.name).invoke(...args);
+        }
+    }));
+    
+        const NetManagerIgnored = [
+        "get_IsLogin",
+        "get_IsTest",
+        "UpdateNetConnect",
+        "get_IsNetConnect"
+    ]
+    NetManager.methods.forEach((method => {
+        if (NetManagerIgnored.includes(method.name)) return;
+
+        NetManager.method(method.name).implementation = function (this: any, ...args: any[]) {
+            console.log("[NetManager::" + method.name + "]: " + args.toString());
+            return this.method(method.name).invoke(...args);
+        }
+    }));
+    NetResponse.methods.forEach((method => {
+        NetResponse.method(method.name).implementation = function (this: any, ...args: any[]) {
+            console.log("[NetResponse::" + method.name + "]: " + args.toString());
+            return this.method(method.name).invoke(...args);
+        }
+    }));
+
+
+
 
 
     // const DebugIgnored = [
@@ -81,16 +190,6 @@ Il2Cpp.perform(() => {
     //     }
     // }));
 
-    // const HTTPSendClientIgnored = [
-    //     "StartSend"
-    // ]
-    // HTTPSendClient.methods.forEach((method => {
-    //     if (HTTPSendClientIgnored.includes(method.name)) return;
-    //     HTTPSendClient.method(method.name).implementation = function (this: any, ...args: any[]) {
-    //         log("[HTTPSendClient::" + method.name + "]: " + args.toString());
-    //         return this.method(method.name).invoke(...args);
-    //     }
-    // }));
 
 
     // CCommonRespMsg.methods.forEach((method => {
@@ -100,64 +199,11 @@ Il2Cpp.perform(() => {
     //     }
     // }));
 
-    // NetConfig.methods.forEach((method => {
-    //     NetConfig.method(method.name).implementation = function (this: any, ...args: any[]) {
-    //         log("[NetConfig::" + method.name + "]: " + args.toString());
-    //         return this.method(method.name).invoke(...args);
-    //     }
-    // }));
-
-    // const NetManagerIgnored = [
-    //     "get_IsLogin",
-    //     "get_IsTest",
-    //     "UpdateNetConnect",
-    //     "get_IsNetConnect"
-    // ]
-    // NetManager.methods.forEach((method => {
-    //     if (NetManagerIgnored.includes(method.name)) return;
-    //     NetManager.method(method.name).implementation = function (this: any, ...args: any[]) {
-    //         log("[NetManager::" + method.name + "]: " + args.toString());
-    //         return this.method(method.name).invoke(...args);
-    //     }
-    // }));
-    // NetResponse.methods.forEach((method => {
-    //     NetResponse.method(method.name).implementation = function (this: any, ...args: any[]) {
-    //         log("[NetResponse::" + method.name + "]: " + args.toString());
-    //         return this.method(method.name).invoke(...args);
-    //     }
-    // }));
 
 
 
 
-    // CertificateHandler.methods.forEach((method => {
-    //     CertificateHandler.method(method.name).implementation = function (this: any, ...args: any[]) {
-    //         log("[CertificateHandler::" + method.name + "]: " + args.toString());
-    //         return this.method(method.name).invoke(...args);
-    //     }
-    // }));
-    // DownloadHandler.methods.forEach((method => {
-    //     DownloadHandler.method(method.name).implementation = function (this: any, ...args: any[]) {
-    //         log("[DownloadHandler::" + method.name + "]: " + args.toString());
-    //         return this.method(method.name).invoke(...args);
-    //     }
-    // }));
-    // UploadHandler.methods.forEach((method => {
-    //     UploadHandler.method(method.name).implementation = function (this: any, ...args: any[]) {
-    //         log("[UploadHandler::" + method.name + "]: " + args.toString());
-    //         return this.method(method.name).invoke(...args);
-    //     }
-    // }));
-    // const UnityWebRequestIgnored = [
-    //     "get_isDone"
-    // ]
-    // UnityWebRequest.methods.forEach((method => {
-    //     if (UnityWebRequestIgnored.includes(method.name)) return;
-    //     UnityWebRequest.method(method.name).implementation = function (this: any, ...args: any[]) {
-    //         log("[UnityWebRequest::" + method.name + "]: " + args.toString());
-    //         return this.method(method.name).invoke(...args);
-    //     }
-    // }));
+
 
 
 
@@ -488,30 +534,40 @@ Il2Cpp.perform(() => {
     //         })
     //     })
 
-
-    // if (connect != null)
+    const ntohsPtr = Module.findExportByName(null, 'ntohs')
+    if (ntohsPtr != null) 
+        var ntohs = new NativeFunction(ntohsPtr, 'uint16', ['uint16']);
+    
+    
+    const inet_addrPtr = Module.findExportByName(null, 'inet_addr');
+    if (inet_addrPtr != null) 
+        var inet_addr = new NativeFunction(inet_addrPtr, 'uint32', ['pointer']);
+    
+    
+    const connect = Module.findExportByName(null, 'connect');
+    
+    // if (connect != null) {
     //     Interceptor.attach(connect, {
     //         onEnter: function (args) {
 
     //             this.sockFd = args[0].toInt32()
+    //             var portLoc = args[1].add(2);
+    //             var ipLoc = args[1].add(4);
+    //             var port = ntohs(portLoc.readU16());
 
-    //             // var portLoc = args[1].add(2);
-    //             // var ipLoc = args[1].add(4);
-    //             // var port = ntohs(portLoc.readU16());
+    //             console.log("[Socket::Connect]: " + port);
+    //             // port === 9952 (both) || 8080 (both) || port === 443 (both) || 12132 (Android)
+    //             if (port == 9952 || port == 8080 || port == 443) {
 
-    //             // log("[Socket::Connect]: " + port);
-    //             // // port === 9952 || 8080 || port === 443
-    //             // if (port == 9952 || port == 8080 || port == 443) { 
+    //                 var fd = args[0].toInt32();
+    //                 var socktype = Socket.type(fd);
+    //                 var host = inet_addr(Memory.allocUtf8String("10.0.1.9"))
+    //                 var ip = ntohs(ipLoc.readU16());
 
-    //             //     var fd = args[0].toInt32();
-    //             //     var socktype = Socket.type(fd);
-    //             //     var host = inet_addr(Memory.allocUtf8String("10.0.1.9"))
-    //             //     var ip = ntohs(ipLoc.readU16());
+    //                 ipLoc.writeInt(host);
+    //                 console.log("[Redirected Socket::Connect]: " + port);
 
-    //             //     ipLoc.writeInt(host);
-    //             //     log("[Redirecting – Socket::Connect]: " + port);
-
-    //             // }
+    //             }
     //         },
     //         onLeave: function (retval) {
     //             // const sockFd = this.sockFd
@@ -528,5 +584,6 @@ Il2Cpp.perform(() => {
 
     //         }
     //     });
+    // }
 
 });

@@ -4,7 +4,7 @@ import time
 import frida
 import sys
 
-class Computer:
+class MacOSX:
     def __init__(self):
         self.PROCESS_NAME = "Archero"
         self.SCRIPT_NAME = "agent.js"
@@ -52,7 +52,7 @@ class Computer:
                     process.kill()
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
-class Phone:
+class iOS:
     def __init__(self):
         self.CONNECTED_TO_PHONE = False
         self.ATTACHED_TO_PROCESS = False
@@ -109,7 +109,6 @@ class Phone:
         subprocess.run(["sudo", "frida", "-U", "-l", "agent.js", "-f",
                         "com.habby.archero.3Z58P8MNX4"])
         print(f'[+]: Process started and script injected')   
-  
 class Android:
     def __init__(self):
         self.CONNECTED_TO_PHONE = False
@@ -117,24 +116,96 @@ class Android:
         self.PROCESS_FOUND = False
         
         self.PROCESS_NAME = "Archero"
-        self.BUNDLE_NAME = "???"
-        self.SCRIPT_NAME = "agent.js"
+        self.BUNDLE_NAME = "com.habby.archero"
+        self.SCRIPT_NAME = "agent_android.js"
+        
+    def killProcess(self):
+        try:
+            subprocess.run(["sudo", "frida-kill", "-U", self.PROCESS_NAME])
+            print(f'[+]: Process killed')
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f'[-]: Process not killed, error: {e}')
+            return False
+
+    # Do not kill process, only attach to already running process.
+    def injectScript(self):
+        try:
+            subprocess.run(["sudo", "frida", "-U", "-l", "agent_android.js"])
+            print(f'[+]: Script injected')
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f'[-]: Script not injected, error: {e}')
+            return False
+
+    # Do not kill process, only attach to already running process.
+    def startAndinject(self):
+        try:
+            subprocess.run(["sudo", "frida", "-U", "-l", "agent_android.js", "-f",
+                           "com.habby.archero"])
+            print(f'[+]: Process started and script injected')
+            return True
+        except subprocess.CalledProcessError as e:
+            print(
+                f'[-]: Process not started and script not injected, error: {e}')
+            return False
+
+    def awaitProcess(self):
+        while self.PROCESS_FOUND == False:
+            time.sleep(1)
+            processes = device.enumerate_processes()
+            for process in processes:
+                if process.name == "Archero":
+                    print("[+]: Archero found")
+                    return
+            else:
+                print("[-]: Archero not found, waiting...")
+
+    def start(self):
+        # self.startAndinject()
+        subprocess.run(["sudo", "frida", "-U", "-l", "agent_android.js", "-f",
+                        "com.habby.archero"])
+        print(f'[+]: Process started and script injected')
+
+    
 
 IS_ANDROID = 1  
-USE_PHONE = 0
+IS_IOS = 0
+IS_MACOSX = 0 
+
+def my_message_handler(message, payload):
+    print(message)
+
 
 if __name__ == "__main__":
-
-    jscode = open("agent_android.js").read()
-    process = frida.get_usb_device().attach('Archero')
-    script = process.create_script(jscode)
-    print('[*]: Attched to Archero process')
-    script.load()
-    sys.stdin.read()
     
-    # if USE_PHONE:
-    #     phone = Phone()
-    #     phone.start()
-    # else:
-    #     computer = Computer()
-    #     computer.start()
+    if IS_ANDROID:
+        android = Android()
+        android.start()
+    elif IS_IOS:
+        ios = iOS()
+        ios.start()
+    elif IS_MACOSX:
+        computer = Computer()
+        computer.start()
+
+    # jscode = open("agent_android.js").read()
+    # device = frida.get_device("emulator-5554")
+    # processId = device.spawn('com.habby.archero')
+    # session = device.attach(processId)
+    # time.sleep(2)
+    # script = session.create_script(jscode)
+    # script.on("message", my_message_handler)
+    # script.load()
+    
+    # print('[*]: Attched to Archero process')
+    # command = ""
+    # while True:
+    #     command = input(
+    #         "Enter command:\n1: Exit\n2: Call secret function\n3: Hook Secret\nchoice:")
+    #     if command == "1":
+    #         break
+    #     elif command == "2":
+    #         script.exports.callsecretfunction()
+    #     elif command2 == "3":
+    #         script.exports.hooksecretfunction()
