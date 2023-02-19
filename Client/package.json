@@ -1,12 +1,12 @@
 {
-  "name": "playground",
-  "main": "index.ts",
-  "version": "1.0.0",
+  "name": "rearchero",
+  "main": "index_ios.ts",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "frida-compile -o agent.js -w index.ts",
-    "attach": "run() { frida -U \"$1\" -l agent.js }; run",
-    "spawn": "run() { frida -U -f \"$1\" -l agent.js }; run"
+    "build-ios": "frida-compile -o agent_ios.js -w index_ios.ts",
+    "build-android": "frida-compile -o agent_android.js -w index_android.ts",
+    "attach": "run() { frida -U \"$1\" -l agent.js }; run"
   },
   "devDependencies": {
     "@types/frida-gum": "latest",

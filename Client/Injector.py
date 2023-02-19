@@ -2,6 +2,7 @@ import psutil
 import subprocess
 import time
 import frida
+import sys
 
 class Computer:
     def __init__(self):
@@ -11,7 +12,7 @@ class Computer:
         
     def start(self):
         while True:
-            time.sleep(1)
+            time.sleep(0.3)
             if self.check_if_process_running():
                 self.kill_process()
                 print(f'[+]: {self.PROCESS_NAME} was killed.')
@@ -23,7 +24,7 @@ class Computer:
 
             # Wait for the process to start
             while not self.check_if_process_running():
-                time.sleep(0.5)
+                time.sleep(0.3)
 
             # Run the command
             subprocess.call(["reset"])
@@ -107,15 +108,33 @@ class Phone:
         #self.startAndinject()
         subprocess.run(["sudo", "frida", "-U", "-l", "agent.js", "-f",
                         "com.habby.archero.3Z58P8MNX4"])
-        print(f'[+]: Process started and script injected')
+        print(f'[+]: Process started and script injected')   
+  
+class Android:
+    def __init__(self):
+        self.CONNECTED_TO_PHONE = False
+        self.ATTACHED_TO_PROCESS = False
+        self.PROCESS_FOUND = False
         
-    
+        self.PROCESS_NAME = "Archero"
+        self.BUNDLE_NAME = "???"
+        self.SCRIPT_NAME = "agent.js"
+
+IS_ANDROID = 1  
 USE_PHONE = 0
+
 if __name__ == "__main__":
+
+    jscode = open("agent_android.js").read()
+    process = frida.get_usb_device().attach('Archero')
+    script = process.create_script(jscode)
+    print('[*]: Attched to Archero process')
+    script.load()
+    sys.stdin.read()
     
-    if USE_PHONE:
-        phone = Phone()
-        phone.start()
-    else:
-        computer = Computer()
-        computer.start()
+    # if USE_PHONE:
+    #     phone = Phone()
+    #     phone.start()
+    # else:
+    #     computer = Computer()
+    #     computer.start()
