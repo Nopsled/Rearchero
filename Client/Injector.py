@@ -117,7 +117,7 @@ class Android:
         
         self.PROCESS_NAME = "Archero"
         self.BUNDLE_NAME = "com.habby.archero"
-        self.SCRIPT_NAME = "agent_android.js"
+        self.SCRIPT_NAME = "Scripts/Networking.js"
         
     def killProcess(self):
         try:
@@ -131,7 +131,7 @@ class Android:
     # Do not kill process, only attach to already running process.
     def injectScript(self):
         try:
-            subprocess.run(["sudo", "frida", "-U", "-l", "agent_android.js"])
+            subprocess.run(["sudo", "frida", "-U", "-l", SELF.SCRIPT_NAME])
             print(f'[+]: Script injected')
             return True
         except subprocess.CalledProcessError as e:
@@ -141,8 +141,8 @@ class Android:
     # Do not kill process, only attach to already running process.
     def startAndinject(self):
         try:
-            subprocess.run(["sudo", "frida", "-U", "-l", "agent_android.js", "-f",
-                           "com.habby.archero"])
+            subprocess.run(["sudo", "frida", "-U", "-l", SELF.SCRIPT_NAME, "-f",
+                           self.BUNDLE_NAME])
             print(f'[+]: Process started and script injected')
             return True
         except subprocess.CalledProcessError as e:
@@ -163,8 +163,8 @@ class Android:
 
     def start(self):
         # self.startAndinject()
-        subprocess.run(["sudo", "frida", "-U", "-l", "agent_android.js", "-f",
-                        "com.habby.archero"])
+        subprocess.run(["sudo", "frida", "-U", "-l", self.SCRIPT_NAME, "-f",
+                        self.BUNDLE_NAME])
         print(f'[+]: Process started and script injected')
 
     

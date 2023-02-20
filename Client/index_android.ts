@@ -1,6 +1,178 @@
 import "frida-il2cpp-bridge";
 
 
+var getaddrinfoPtr = Module.findExportByName(null, 'getaddrinfo')
+var connectPtr = Module.findExportByName(null, 'connect')
+var sendPtr = Module.findExportByName(null, 'send')
+var recvPtr = Module.findExportByName(null, 'recv')
+
+if(getaddrinfoPtr != null) 
+    var getaddrinfoFunction = new NativeFunction(getaddrinfoPtr, 'int', ['pointer', 'pointer', 'pointer', 'pointer'])
+
+if (connectPtr != null)
+    var connectFunction = new NativeFunction(connectPtr, 'int', ['int', 'pointer', 'int'])
+
+if (sendPtr != null)
+    var sendFunction = new NativeFunction(sendPtr, 'int', ['int', 'pointer', 'int', 'int'])
+
+if (recvPtr != null)
+var recvFunction = new NativeFunction(recvPtr, 'int', ['int', 'pointer', 'int', 'int'])
+
+// if (connectPtr != null) {
+
+//     Interceptor.replace(connectPtr, new NativeCallback(function (socket, address, addressLen) {
+//         var endpoint = {
+//             ip: '',
+//             port: 0
+//         }
+//         var portPtr = ptr(parseInt(address) + 2)
+//         var portHigh = portPtr.readU8()
+//         var portLow = Memory.readU8(ptr(parseInt(portPtr) + 1))
+//         endpoint.port = (portHigh & 0xFF) << 8 | (portLow & 0xFF)
+
+//         var ipPtr = ptr(parseInt(address) + 4)
+//         var ip = []
+
+//         ip.push(ipPtr.readU8())
+//         ip.push(ipPtr.add(1).readU8())
+//         ip.push(ipPtr.add(2).readU8())
+//         ip.push(ipPtr.add(3).readU8())
+
+//         endpoint.ip = ip.join('.')
+//         var result = connectFunction(socket, address, addressLen)
+//         console.log(formatFunction('connect', [socket, JSON.stringify(endpoint), addressLen], result))
+//         return result
+        
+//     }, 'int', ['int', 'pointer', 'int']))
+
+// }
+
+
+
+
+const ntohsPtr = Module.findExportByName(null, 'ntohs')
+if (ntohsPtr != null)
+    var ntohs = new NativeFunction(ntohsPtr, 'uint16', ['uint16']);
+
+const inet_addrPtr = Module.findExportByName(null, 'inet_addr');
+if (inet_addrPtr != null)
+    var inet_addr = new NativeFunction(inet_addrPtr, 'uint32', ['pointer']);
+
+const connect = Module.findExportByName(null, 'connect');
+if (connect != null) {
+    Interceptor.attach(connect, {
+        onEnter: function (args) {
+
+            // Get the socket file descriptor and the remote endpoint address
+            // var sockfd = args[0].toInt32();
+            // var port = ntohs(args[1].add(2).readU16());
+            // var ipPtr = args[1].add(4)
+            // var ip = []
+
+            // ip.push(ipPtr.readU8())
+            // ip.push(ipPtr.add(1).readU8())
+            // ip.push(ipPtr.add(2).readU8())
+            // ip.push(ipPtr.add(3).readU8())
+
+            // // Parse the address to get the IP and port
+            // if (ip !== null) {
+            //     // Log the IP and port
+            //     console.log("[Socket::connect] ip: " + ip + ", port: " + port);
+
+            //     const redirectHost = inet_addr(Memory.allocUtf8String("10.0.1.9"))
+            //     Memory.protect(ipPtr, 4, 'rw-');
+            //     ipPtr.writeU32(redirectHost);
+            //     // ipPtr.add(0).writeU8(127);
+            //     // ipPtr.add(1).writeU8(0);
+            //     // ipPtr.add(2).writeU8(0);
+            //     // ipPtr.add(3).writeU8(1);
+
+            //     //console.log("[Socket::connect] ip: " + ipPtr.readUtf8String(4) + ", port: " + port);
+            //     console.log("")
+
+            // }
+
+
+
+            const sockFd = args[0].toInt32();
+            const sockType = Socket.type(sockFd);
+            const portPtr = args[1].add(2);
+            const ipPtr = args[1].add(4);
+            const port = ntohs(portPtr.readU16());
+
+            
+
+            if (!(sockType === "tcp6" || sockType === "tcp")) return
+            const sockLocal = Socket.localAddress(sockFd)
+            const sockRemote = Socket.peerAddress(sockFd)
+            //if (sockRemote === null) return
+
+
+            //port === 9952 (both) || 8080 (both) || port === 443 (both) || 12132 (Android)
+            //port === 9952 || port === 8080 || port === 443 || port ===12132
+            //if (port === 9952 || port === 8080 || port === 443) {
+
+                Memory.protect(ipPtr, 4096, 'rw-');
+                const host = inet_addr(Memory.allocUtf8String("10.0.1.9"))
+                ipPtr.add(0).writeU8(127)
+                ipPtr.add(1).writeU8(0)
+                ipPtr.add(2).writeU8(0)
+                ipPtr.add(3).writeU8(1)
+                //ipPtr.writeInt(host);
+            
+            
+                console.log("[Redirected Socket::Connect]: " +  port);
+
+            //}
+        },
+        onLeave: function (retval) {
+            // const sockFd = this.sockFd
+            // const sockType = Socket.type(sockFd)
+            // const port = ntohs(portLoc.readU16());
+
+            // if (!(sockType === "tcp6" || sockType === "tcp")) return
+
+            // const sockLocal = Socket.localAddress(sockFd)
+            // const sockRemote = Socket.peerAddress(sockFd)
+            // if (sockRemote === null) return
+
+            // log("[Socket::Connect (onLeave)]: " + port);
+
+        }
+    });
+}
+
+// Java.perform(function () {
+//     // Get a reference to the socket library and the connect function
+//     var socket = Java.use("java.net.Socket");
+//     var connect = socket.connect.overload("java.net.SocketAddress", "int");
+
+//     // Replace the connect function with our own implementation
+//     connect.implementation = function (socketAddress: any, timeout: any) {
+//         // Check if the port is 443
+//         var port = socketAddress.getPort();
+//         console.log("[*] Port: " + port)
+        
+//         if (port === 443) {
+//             console.log("[*] Hooked connect function");
+
+//             // Connect to localhost over a socket
+//             var InetAddress = Java.use("java.net.InetAddress");
+//             var localhost = InetAddress.getByName("localhost");
+//             var localSocket = socket.$new();
+//             localSocket.connect(Java.cast(localhost, socketAddress.getClass()), timeout);
+//             return;
+//         }
+
+//         // Call the original connect function if the port is not 443
+//         connect.call(this, socketAddress, timeout);
+//     };
+// });
+
+
+
+
+
 Il2Cpp.perform(() => {
 
     console.log("[Agent]: Injected and rebuilded");
@@ -90,90 +262,90 @@ Il2Cpp.perform(() => {
     //         return this.method(method.name).invoke(...args);
     //     }
     // }));
-    UploadHandler.methods.forEach((method => {
-        UploadHandler.method(method.name).implementation = function (this: any, ...args: any[]) {
-            console.log("[UploadHandler::" + method.name + "]: " + args.toString());
-            return this.method(method.name).invoke(...args);
-        }
-    }));
-    const UnityWebRequestIgnored = [
-        "get_isDone",
-        "get_timeout",
-        "Dispose",
-        "Abort",
-        "get_error"
-    ]
-    UnityWebRequest.methods.forEach((method => {
-        if (UnityWebRequestIgnored.includes(method.name)) return;
-        UnityWebRequest.method(method.name).implementation = function (this: any, ...args: any[]) {
-            console.log("[UnityWebRequest::" + method.name + "]: " + args.toString());
-            return this.method(method.name).invoke(...args);
-        }
-    }));
-    const HTTPSendClientIgnored = [
-        "StartSend",
-        "isTimeOut",
-        "get_timeout",
-        "get_starttime",
-        "check_done",
-        "get_IsCache"
-    ]
-    HTTPSendClient.methods.forEach((method => {
-        if (HTTPSendClientIgnored.includes(method.name)) return;
+    // UploadHandler.methods.forEach((method => {
+    //     UploadHandler.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[UploadHandler::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
+    // const UnityWebRequestIgnored = [
+    //     "get_isDone",
+    //     "get_timeout",
+    //     "Dispose",
+    //     "Abort",
+    //     "get_error"
+    // ]
+    // UnityWebRequest.methods.forEach((method => {
+    //     if (UnityWebRequestIgnored.includes(method.name)) return;
+    //     UnityWebRequest.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[UnityWebRequest::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
+    // const HTTPSendClientIgnored = [
+    //     "StartSend",
+    //     "isTimeOut",
+    //     "get_timeout",
+    //     "get_starttime",
+    //     "check_done",
+    //     "get_IsCache"
+    // ]
+    // HTTPSendClient.methods.forEach((method => {
+    //     if (HTTPSendClientIgnored.includes(method.name)) return;
 
-        HTTPSendClient.method(method.name).implementation = function (this: any, ...args: any[]) {
-            console.log("[HTTPSendClient::" + method.name + "]: " + args.toString());
-        return this.method(method.name).invoke(...args);
-        }
-    }));
+    //     HTTPSendClient.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[HTTPSendClient::" + method.name + "]: " + args.toString());
+    //     return this.method(method.name).invoke(...args);
+    //     }
+    // }));
 
 
-    SHA256.methods.forEach((method => {
-        SHA256.method(method.name).implementation = function (this: any, ...args: any[]) {
-            console.log("[SHA256::" + method.name + "]: " + args.toString());
-            return this.method(method.name).invoke(...args);
-        }
-    }));
-    HashAlgorithm.methods.forEach((method => {
-        HashAlgorithm.method(method.name).implementation = function (this: any, ...args: any[]) {
-            console.log("[HashAlgorithm::" + method.name + "]: " + args.toString());
-            return this.method(method.name).invoke(...args);
-        }
-    }));
-    RSA.methods.forEach((method =>  {
-        RSA.method(method.name).implementation = function (this: any, ...args: any[]) {
-            console.log("[RSA::" + method.name + "]: " + args.toString());
-            return this.method(method.name).invoke(...args);
-        }
-    }));
+    // SHA256.methods.forEach((method => {
+    //     SHA256.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[SHA256::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
+    // HashAlgorithm.methods.forEach((method => {
+    //     HashAlgorithm.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[HashAlgorithm::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
+    // RSA.methods.forEach((method =>  {
+    //     RSA.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[RSA::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
 
-    NetConfig.methods.forEach((method => {
-        NetConfig.method(method.name).implementation = function (this: any, ...args: any[]) {
-            console.log("[NetConfig::" + method.name + "]: " + args.toString());
-            return this.method(method.name).invoke(...args);
-        }
-    }));
+    // NetConfig.methods.forEach((method => {
+    //     NetConfig.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[NetConfig::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
     
-        const NetManagerIgnored = [
-        "get_IsLogin",
-        "get_IsTest",
-        "UpdateNetConnect",
-        "get_IsNetConnect"
-    ]
-    NetManager.methods.forEach((method => {
-        if (NetManagerIgnored.includes(method.name)) return;
+    //     const NetManagerIgnored = [
+    //     "get_IsLogin",
+    //     "get_IsTest",
+    //     "UpdateNetConnect",
+    //     "get_IsNetConnect"
+    // ]
+    // NetManager.methods.forEach((method => {
+    //     if (NetManagerIgnored.includes(method.name)) return;
 
-        NetManager.method(method.name).implementation = function (this: any, ...args: any[]) {
-            console.log("[NetManager::" + method.name + "]: " + args.toString());
-            return this.method(method.name).invoke(...args);
-        }
-    }));
-    NetResponse.methods.forEach((method => {
-        NetResponse.method(method.name).implementation = function (this: any, ...args: any[]) {
-            console.log("[NetResponse::" + method.name + "]: " + args.toString());
-            return this.method(method.name).invoke(...args);
-        }
-    }));
+    //     NetManager.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[NetManager::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
+    // NetResponse.methods.forEach((method => {
+    //     NetResponse.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[NetResponse::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
 
 
 
@@ -534,18 +706,16 @@ Il2Cpp.perform(() => {
     //         })
     //     })
 
-    const ntohsPtr = Module.findExportByName(null, 'ntohs')
-    if (ntohsPtr != null) 
-        var ntohs = new NativeFunction(ntohsPtr, 'uint16', ['uint16']);
+    // const ntohsPtr = Module.findExportByName(null, 'ntohs')
+    // if (ntohsPtr != null) 
+    //     var ntohs = new NativeFunction(ntohsPtr, 'uint16', ['uint16']);
+    
+    // const inet_addrPtr = Module.findExportByName(null, 'inet_addr');
+    // if (inet_addrPtr != null) 
+    //     var inet_addr = new NativeFunction(inet_addrPtr, 'uint32', ['pointer']);
     
     
-    const inet_addrPtr = Module.findExportByName(null, 'inet_addr');
-    if (inet_addrPtr != null) 
-        var inet_addr = new NativeFunction(inet_addrPtr, 'uint32', ['pointer']);
-    
-    
-    const connect = Module.findExportByName(null, 'connect');
-    
+    // const connect = Module.findExportByName(null, 'connect');
     // if (connect != null) {
     //     Interceptor.attach(connect, {
     //         onEnter: function (args) {
@@ -557,7 +727,8 @@ Il2Cpp.perform(() => {
 
     //             console.log("[Socket::Connect]: " + port);
     //             // port === 9952 (both) || 8080 (both) || port === 443 (both) || 12132 (Android)
-    //             if (port == 9952 || port == 8080 || port == 443) {
+    //             // port === 9952 || port === 8080 || port === 443 || port ===12132
+    //             if (port === 9952 || port === 8080 || port === 443) {
 
     //                 var fd = args[0].toInt32();
     //                 var socktype = Socket.type(fd);

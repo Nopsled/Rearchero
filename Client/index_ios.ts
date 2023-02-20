@@ -501,7 +501,7 @@ Il2Cpp.perform(() => {
         })
     
 
-    // if (connect != null)
+    //  if (connect != null)
     //     Interceptor.attach(connect, {
     //         onEnter: function (args) {
 
