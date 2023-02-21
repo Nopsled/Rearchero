@@ -7,6 +7,10 @@ from threading import Thread
 import time
 import ssl
 import OpenSSL
+import json
+import re
+import urllib.parse
+import base64
 import subprocess
 from OpenSSL import crypto
 
@@ -16,6 +20,8 @@ from OpenSSL import crypto
 # adb shell settings put global http_proxy $(ipconfig getifaddr en0): 8888
 # To disable that proxy use:
 # adb shell settings put global http_proxy: 0
+
+# emulator -avd Pixel_6_API_32
 
 class GameWorldManager:
     instances = []
@@ -51,162 +57,6 @@ class PlayerObject:
         pass
 
 
-cert_str = """
------BEGIN CERTIFICATE-----
-[
-[
-  Version: V3
-  Subject: CN=habby.mobi
-  Signature Algorithm: SHA256withRSA, OID = 1.2.840.113549.1.1.11
-
-  Key:  Sun RSA public key, 2048 bits
-  params: null
-  modulus: 26000169808348282176637874931097892150273366304155500275594083360835736836470538900877738517719909397469192852162353833534564443945066199830902644319587329097344859001508480948411433453208845376381394754087512216029460237609525032268001907939463247276557136825989256670471297181212656747211434657278807944781668500228858488660016893582286402415790762855110150237355481015565442913699835328800351418934598762372006272944058157959328198165133934245192738006469871216627164585353380570130400164725446619579865419279228341647968000892133096363884020833707723486285632646809894689747409737501323141568383582636859861974521
-  public exponent: 65537
-  Validity: [From: Wed Aug 17 02:00:00 CEST 2022,
-               To: Fri Sep 15 01:59:59 CEST 2023]
-  Issuer: CN=Amazon, OU=Server CA 1B, O=Amazon, C=US
-  SerialNumber: [    02c0c2b6 bdb5dde2 43682595 86c80f27]
-
-Certificate Extensions: 10
-[1]: ObjectId: 1.3.6.1.4.1.11129.2.4.2 Criticality=false
-Extension unknown: DER encoded OCTET string =
-0000: 04 82 01 6C 04 82 01 68   01 66 00 75 00 E8 3E D0  ...l...h.f.u..>.
-0010: DA 3E F5 06 35 32 E7 57   28 BC 89 6B C9 03 D3 CB  .>..52.W(..k....
-0020: D1 11 6B EC EB 69 E1 77   7D 6D 06 BD 6E 00 00 01  ..k..i.w.m..n...
-0030: 82 AA 88 FF C8 00 00 04   03 00 46 30 44 02 20 2D  ..........F0D. -
-0040: F6 43 25 DE A1 A8 5F D7   59 5F D3 04 3E 86 D5 22  .C%..._.Y_..>.."
-0050: 08 3A FC F1 CE 61 17 9A   69 BA BB 17 72 9B 32 02  .:...a..i...r.2.
-0060: 20 4D B3 22 AB B7 67 D8   92 78 96 24 D2 87 55 C9   M."..g..x.$..U.
-0070: 2D 47 3D 4C A2 FF 05 65   DB C1 9D 28 B6 E4 87 CE  -G=L...e...(....
-0080: 03 00 76 00 B3 73 77 07   E1 84 50 F8 63 86 D6 05  ..v..sw...P.c...
-0090: A9 DC 11 09 4A 79 2D B1   67 0C 0B 87 DC F0 03 0E  ....Jy-.g.......
-00A0: 79 36 A5 9A 00 00 01 82   AA 89 00 2B 00 00 04 03  y6.........+....
-00B0: 00 47 30 45 02 21 00 AC   FA 4E 98 7F 07 E3 47 68  .G0E.!...N....Gh
-00C0: B7 B7 B9 F0 13 EF D3 1C   9B FE FC BA 59 97 EE 89  ............Y...
-00D0: 2B DB BD 35 23 85 68 02   20 6E FB C5 92 C1 53 AE  +..5#.h. n....S.
-00E0: E4 BD EE 34 4E 65 52 37   26 DC 04 5F FD 14 2D 76  ...4NeR7&.._..-v
-00F0: BC 1B EB 24 4C 13 71 C0   EE 00 75 00 B7 3E FB 24  ...$L.q...u..>.$
-0100: DF 9C 4D BA 75 F2 39 C5   BA 58 F4 6C 5D FC 42 CF  ..M.u.9..X.l].B.
-0110: 7A 9F 35 C4 9E 1D 09 81   25 ED B4 99 00 00 01 82  z.5.....%.......
-0120: AA 89 00 02 00 00 04 03   00 46 30 44 02 20 4B 1C  .........F0D. K.
-0130: 34 65 48 1A AC F8 FA F4   68 1F 60 11 45 D5 D6 89  4eH.....h.`.E...
-0140: 52 AC B1 A5 67 D5 2F 07   E8 77 63 C6 7D D1 02 20  R...g./..wc.... 
-0150: 68 88 00 7C 7F 92 C9 5B   DC AC 24 44 AA 10 05 E4  h......[..$D....
-0160: 1C 1C EF 91 B4 9B F6 9E   79 49 E2 73 E2 5D D9 B8  ........yI.s.]..
-
-
-[2]: ObjectId: 1.3.6.1.5.5.7.1.1 Criticality=false
-AuthorityInfoAccess [
-  [
-   accessMethod: ocsp
-   accessLocation: URIName: http://ocsp.sca1b.amazontrust.com
-, 
-   accessMethod: caIssuers
-   accessLocation: URIName: http://crt.sca1b.amazontrust.com/sca1b.crt
-]
-]
-
-[3]: ObjectId: 2.5.29.35 Criticality=false
-AuthorityKeyIdentifier [
-KeyIdentifier [
-0000: 59 A4 66 06 52 A0 7B 95   92 3C A3 94 07 27 96 74  Y.f.R....<...'.t
-0010: 5B F9 3D D0                                        [.=.
-]
-]
-
-[4]: ObjectId: 2.5.29.19 Criticality=true
-BasicConstraints:[
-  CA:false
-  PathLen: undefined
-]
-
-[5]: ObjectId: 2.5.29.31 Criticality=false
-CRLDistributionPoints [
-  [DistributionPoint:
-     [URIName: http://crl.sca1b.amazontrust.com/sca1b-1.crl]
-]]
-
-[6]: ObjectId: 2.5.29.32 Criticality=false
-CertificatePolicies [
-  [CertificatePolicyId: [2.23.140.1.2.1]
-[]  ]
-]
-
-[7]: ObjectId: 2.5.29.37 Criticality=false
-ExtendedKeyUsages [
-  serverAuth
-  clientAuth
-]
-
-[8]: ObjectId: 2.5.29.15 Criticality=true
-KeyUsage [
-  DigitalSignature
-  Key_Encipherment
-]
-
-[9]: ObjectId: 2.5.29.17 Criticality=false
-SubjectAlternativeName [
-  DNSName: habby.mobi
-  DNSName: *.habby.mobi
-]
-
-[10]: ObjectId: 2.5.29.14 Criticality=false
-SubjectKeyIdentifier [
-KeyIdentifier [
-0000: 4C AD 52 D4 09 19 49 EC   6A DD D4 38 03 FC 58 09  L.R...I.j..8..X.
-0010: 33 86 E0 CF                                        3...
-]
-]
-
-]
-  Algorithm: [SHA256withRSA]
-  Signature:
-0000: 2F FA BF 2E 50 67 35 52   9D 2A 50 F6 8F 7E 6C 7A  /...Pg5R.*P...lz
-0010: B8 DA 89 5C B8 60 D2 E3   D4 E9 60 0E F9 24 62 79  ...\.`....`..$by
-0020: C0 46 40 37 82 46 AD A7   CF 98 3F 99 91 7D C4 C0  .F@7.F....?.....
-0030: 9B D1 A7 08 04 F8 65 96   79 06 49 40 76 56 7B 09  ......e.y.I@vV..
-0040: BD 64 37 21 95 28 4D 4D   ED 39 C8 E7 FE 76 BF 94  .d7!.(MM.9...v..
-0050: 52 E4 F7 8D D9 9E 34 00   99 55 9A DC 72 AA 86 47  R.....4..U..r..G
-0060: 80 B9 42 FC DF 0C FB 70   C8 78 D7 64 36 08 2E 04  ..B....p.x.d6...
-0070: 82 5E 35 55 5A 44 94 1C   BF 4E 20 42 AF CB 76 6F  .^5UZD...N B..vo
-0080: EB B1 7D DB 42 EE 17 B7   ED 98 38 A4 94 E4 95 6B  ....B.....8....k
-0090: 78 49 59 B3 13 BC 60 EC   40 86 F5 50 F9 2C 09 84  xIY...`.@..P.,..
-00A0: AA DD 5C 9E B9 0F 86 4C   56 AD 8D EF 4E 88 7A A6  ..\....LV...N.z.
-00B0: F6 D6 49 1C B6 34 D1 8C   10 CE C8 AB 09 D9 C5 CF  ..I..4..........
-00C0: E0 40 FA 73 65 02 48 B5   AD 24 10 CE 58 EC E7 CB  .@.se.H..$..X...
-00D0: 50 AB D3 26 82 9B FF A1   AA 39 7A 12 3D B3 7D 82  P..&.....9z.=...
-00E0: E3 C0 01 AA 9A FB CB 17   F5 BF E4 DB A7 9C 66 A0  ..............f.
-00F0: 2C 50 49 BB C2 56 E1 C9   87 90 F7 62 61 D9 1A 09  ,PI..V.....ba...
-
-]
------END CERTIFICATE-----
-"""
-
-# RC4Encrypter_pwdStr = "DusT0I+nh6FQUV2QonQoPUFnBeUNtFdtN284BDKWaP094CrB4E5R2i4GGDaxElWydqcaWLYyVdCZjRVl83iLmdTPjx/atbqCff35v8jKGQd8MMtgJjalbFsF4my9lEEL"
-# Define the RC4 encryption algorithm
-# def rc4(key, data):
-#     S = [i for i in range(256)]
-#     j = 0
-#     for i in range(256):
-#         j = (j + S[i] + key[i % len(key)]) % 256
-#         S[i], S[j] = S[j], S[i]
-
-#     i = j = 0
-#     out = bytearray()
-#     for byte in data:
-#         i = (i + 1) % 256
-#         j = (j + S[i]) % 256
-#         S[i], S[j] = S[j], S[i]
-#         k = S[(S[i] + S[j]) % 256]
-#         encryptedByte = byte ^ k
-#         print("Encrypted byte: " + str(encryptedByte))
-#         out.append(encryptedByte)
-
-#     return out
-#Encrypt the data using the RC4 algorithm and key
-# encrypted_data = rc4(key, data)
-
 
 def generate_cert():
     # Create a self-signed certificate
@@ -227,38 +77,213 @@ def generate_cert():
     with open("Certificates/key.pem", "wb") as f:
         f.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, pkey))
 
+
+
+
+class NetUtility:
+
+    @staticmethod
+    def parse_data(data):
+        pass
+        # request_line, headers = data.split('\n', 1)
+        # method, path, protocol = request_line.split()
+
+        # parsed_path = urllib.parse.urlparse(path)
+        # query_params = urllib.parse.parse_qs(parsed_path.query)
+
+        # store = query_params['store'][0]
+        # app_language = query_params['appLanguage'][0]
+        # system_language = query_params['systemLanguage'][0]
+        # app_version = query_params['appVersion'][0]
+        # device_model = query_params['deviceModel'][0]
+
+        # custom_data = query_params['customData'][0]
+        # custom_data_dict = json.loads(urllib.parse.unquote(custom_data))
+
+        # sdk_version = headers.split("\n")[0].split(":")[1].strip()
+        # client_data_str = headers.split("\n")[1].split(":")[1].strip()
+        # #client_data = json.loads(client_data_str)
+        # content_type = headers.split("\n")[2].split(":")[1].strip()
+        # if_none_match = headers.split("\n")[3].split(":")[1].strip()
+        # host = headers.split("\n")[4].split(":")[1].strip()
+        # accept_encoding = headers.split("\n")[5].split(":")[1].strip()
+        # connection = headers.split("\n")[6].split(":")[1].strip()
+        # keep_alive = headers.split("\n")[7].split(":")[1].strip()
+        # te = headers.split("\n")[8].split(":")[1].strip()
+        # user_agent = headers.split("\n")[9]
+        
+        # print(f'[-] SDK Version: {sdk_version}')
+        # #print(f'[-] Client Data: {client_data}')
+        # print(f'[-] Content Type: {content_type}')
+        # print(f'[-] If None Match: {if_none_match}')
+        # print(f'[-] Host: {host}')
+        # print(f'[-] Accept Encoding: {accept_encoding}')
+        # print(f'[-] Connection: {connection}')
+        # print(f'[-] Keep Alive: {keep_alive}')
+        # print(f'[-] TE: {te}')
+        # print(f'[-] User Agent: {user_agent}')
+        # print(f'[-] Store: {store}')
+        # print(f'[-] App Language: {app_language}')
+        # print(f'[-] System Language: {system_language}')
+        # print(f'[-] App Version: {app_version}')
+        # print(f'[-] Device Model: {device_model}')
+        # print(f'[-] Custom Data: {custom_data}')
+        # print(f'[-] Custom Data Dict: {custom_data_dict}')
+        # print('')
+        # print('')
+
+    
+
+# Reversed API of Archero.
+class API:
+
+    @staticmethod
+    def users_x_announcements (request):
+        pass
+
+    # Handle requests to: /users/156815953/announcements
+    @staticmethod
+    def users_x_announcements (request):
+        pass
+    
+    
+        
+
+
 class Client:
     def __init__(self, socket):
         self.socket = socket
+        self.port = -0
+
 
     def recv(self):
         while True:
             time.sleep(0.5)
             
             try: 
-                data = self.socket.recv(4096)
+                rawData = self.socket.recv(4096)
             except Exception as e:
                 print(f'[-] Cannot recv data on socket, error: {e}')
-                
-            # try:
-            #     data = self.socket.recv(1024).hex()
-            # except Exception as e:
-            #     print(f'[-]: {e}')
 
-            if len(data) > 0:
+            if len(rawData) > 0:
+                decodedData = rawData.decode()
+                strippedData = decodedData.strip()
+                #print(f'[Recv (port:{self.port}]: {decodedData}')
                 
-                try:
-                    self.port = self.socket.getsockname()[1]
+
+                # Split the data into the request and headers
+                data2 = urllib.parse.parse_qs(strippedData)
+                print(data2)
+                print("")
+
+
+                if re.search(r"users/\d+/announcements", decodedData):
+                    response = b"""HTTP/1.1 304 Not Modified
+                    Connection: close
+                    Vary: Accept-Encoding
+                    Date: Mon, 20 Feb 2023 19:17:23 GMT
+                    X-Powered-By: Express
+                    ETag: W/"1d-qTxd3JymBGkwYt6o0i73c1lZiUA"
+                    X-Cache: Miss from cloudfront
+                    Via: 1.1 648da69bb4c2221c403be08a06311d98.cloudfront.net (CloudFront)
+                    X-Amz-Cf-Pop: ARN56-P1
+                    X-Amz-Cf-Id: YSLMFVKf-ZDsrj_ZRkCdupmcUJyeqrh3HdcMryFo8vZIw_mx7frGNQ==\r\n\r\n"""
+                    self.socket.send(response)
+                    print("[+] API request: users/<id>/announcements, response sent back to client.")
+                    print(response)
+                    print("")
+
+                #POST /v1/projects/archero-10b8d/installations HTTP/1.1
+                if "v1/projects/archero-10b8d/installations" in decodedData:
+                    response = b'''HTTP/2 200 OK
+                    Content-Type: application/json; charset=UTF-8
+                    Vary: Origin
+                    Vary: X-Origin
+                    Vary: Referer
+                    Date: Mon, 20 Feb 2023 23:29:37 GMT
+                    Server: ESF
+                    Cache-Control: private
+                    Content-Length: 630
+                    X-Xss-Protection: 0
+                    X-Frame-Options: SAMEORIGIN
+                    X-Content-Type-Options: nosniff
+                    Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+
+                    {
+                    "name": "projects/828268901162/installations/cxQTspArQ2m_Dl6OsvUfaF",
+                    "fid": "cxQTspArQ2m_Dl6OsvUfaF",
+                    "refreshToken": "3_AS3qfwJGYt8Al5oYk5R5GrOH5A_iVW4rDi-bTk28SYxQFGJL0jzjUIJ-pG_dYfqsd-2KAZxg03a2rI7o5BGyRYb5PsgDRkbBuBf-qUSSz1TwgJc",
+                    "authToken": {
+                        "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBJZCI6IjE6ODI4MjY4OTAxMTYyOmFuZHJvaWQ6NzliODUyN2ViYzA1M2M2ODhiZTQ1MyIsImV4cCI6MTY3NzU0MDU3NywiZmlkIjoiY3hRVHNwQXJRMm1fRGw2T3N2VWZhRiIsInByb2plY3ROdW1iZXIiOjgyODI2ODkwMTE2Mn0.AB2LPV8wRQIhAOXLJ5-FXc0Vvj7qtFgSLcKLdAthMYPnhvGGpFJ4kibzAiBSd41HdzooTpUzpXK1C0XoY3c13Uw82ZJCDOc4Mhlv2Q",
+                        "expiresIn": "604800s"
+                    }
+                    }'''
+                    self.socket.send(response)
+                    print("[+] API request: POST / v1/projects/archero-10b8d/installations")
+                    print("[+] Response: " + response.decode())
+
+                # GET / spi/v2/platforms/android/gmp/1: 828268901162: android: 79b8527ebc053c688be453/settings?instance = 7a16ca6d37f5b937c1687f86d66188f136bb999b & build_version = 1266 & display_version = 4.9.0 & source = 4
+                if "/spi/v2/platforms/android/gmp/" in decodedData:
+                    response = '''HTTP/2 200 OK
+                    Content-Type: application/json; charset=utf-8
+                    X-Content-Type-Options: nosniff
+                    Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+                    Pragma: no-cache
+                    Expires: Mon, 01 Jan 1990 00:00:00 GMT
+                    Date: Mon, 20 Feb 2023 23:29:37 GMT
+                    Cross-Origin-Opener-Policy: same-origin-allow-popups
+                    Server: ESF
+                    X-Xss-Protection: 0
+                    X-Frame-Options: SAMEORIGIN
+                    Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+
+                    {"settings_version":3,"cache_duration":86400,"features":{"collect_logged_exceptions":true,"collect_reports":true,"collect_analytics":false,"prompt_enabled":false,"push_enabled":false,"firebase_crashlytics_enabled":false,"collect_anrs":true,"collect_metric_kit":false,"collect_build_ids":false},"app":{"status":"activated","update_required":false,"report_upload_variant":2,"native_report_upload_variant":2},"fabric":{"org_id":"628d0027632d9c0d02e2b976","bundle_id":"com.habby.archero"},"on_demand_upload_rate_per_minute":10.0,"on_demand_backoff_base":1.2,"on_demand_backoff_step_duration_seconds":60,"app_quality":{"sessions_enabled":true,"sampling_rate":1.0,"session_timeout_seconds":1800}}'''
+                    self.socket.send(response)
+                    print(
+                        "[+] API request: /sync, responded back to client.")
+                    print("[+] Response: " + response.decode())
                     
-                    if self.port == 443:
-                        print(f'[Recv (port:{self.port})]: {data}')
-                        print('')
-                except Exception as e:
-                    print(f'[-]: Cannot find port of socket, error: {e}')
-                
-                #self.socket.send(data)
-                                  
+                    
+                # POST /sync HTTP/1.1 (receiver.habby.mobi)
+                if "sync" in decodedData:
+                    response = b'''HTTP/2 200 OK
+                    Date: Mon, 20 Feb 2023 23:05:15 GMT
+                    Content-Type: application/json;charset=utf-8
+                    Content-Length: 10
 
+                    {"code":0}\r\n\r\n'''
+                    self.socket.send(response)
+                    print("[+] API request: POST /sync (receiver.habby.mobi)")
+                    print("[+] Response: " + response.decode())
+                
+                if "config?appid" in decodedData:
+                    response = b'''HTTP/2 200 OK
+                    Date: Mon, 20 Feb 2023 23:19:00 GMT
+                    Content-Type: application/json;charset=utf-8
+                    Content-Length: 69
+
+                    {"code":0,"data":{"sync_batch_size":100,"sync_interval":60},"msg":""}\r\n\r\n'''
+                    self.socket.send(response)
+                    print(
+                        "[+] API request: /config?appid=xxxxx, responded back to client.")
+                    print("[+] Response: " + response.decode())
+                
+                if "session" in decodedData:
+                    response = b'''HTTP/1.1 200 OK
+                    content-type: application/json; charset=utf-8
+                    date: Mon, 20 Feb 2023 23:29:42 GMT
+                    content-length: 84
+                    strict-transport-security: max-age=31536000; includeSubDomains; preload
+                    x-frame-options: SAMEORIGIN
+                    x-content-type-options: nosniff
+                    x-robots-tag: noindex
+                    connection: close
+
+                    {"app_token":"be40xoovkp34","adid":"2e923d233df94bf905a4000937265a52","ask_in":5000}'''
+                    self.socket.send(response)
+                    print(
+                        "[+] API request: POST app.adjust.com/session")
+                    print("[+] Response: " + response.decode())
 
 
 def onNewClient(clientSocket, clientAddress, isSSL):
@@ -277,15 +302,15 @@ def loop(socket, port, isSSL):
         (clientSocket, clientAddress) = socket.accept()
         if isSSL == True:
             try:
-                certificate = ssl.PEM_cert_to_DER_cert(cert_str)
                 context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-                context.load_cert_chain(certfile=None, keyfile=None, cert_chain=certificate)
-                #context.load_cert_chain(certfile="Certificates/cert.pem", keyfile="Certificates/key.pem")
+                context.load_cert_chain(certfile="Certificates/cert.pem", keyfile="Certificates/key.pem")
                 clientSocket = context.wrap_socket(clientSocket, server_side=True)
-                print(f'[+]: SSL connection established: {clientAddress}')
+                print(f'[+] SSL connection established: {clientAddress}')
             except Exception as e:
-                print(f'[-]: SSL connection errored: {e}')
+                print(f'[-] SSL connection errored: {e}')
                 break
+        else:
+            print(f'[+] Connection established to no SSL socket: {clientAddress}')
         
         onNewClient(clientSocket, clientAddress, isSSL)
 
@@ -294,39 +319,37 @@ if __name__ == "__main__":
 
     # Kill process if running earlier
     subprocess.run(["sudo", "pkill", "python"])
-    
+
+
+
+    # 12132, 9952, 8080, (443)
+    ports = [443]
+    sockets = [
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM),
+        # socket.socket(socket.AF_INET, socket.SOCK_STREAM),
+        # socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    ]
+
     # Generate a private key
     pkey = crypto.PKey()
     pkey.generate_key(crypto.TYPE_RSA, 2048)
 
     # Generate the certificate
     generate_cert()
-
-
-    # 9952, 8080, (443)
-    # 12132, 9952, 8080
-    ports = []
-    sockets = [
-        # socket.socket(socket.AF_INET, socket.SOCK_STREAM),
-        # socket.socket(socket.AF_INET, socket.SOCK_STREAM),
-        # socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    ]
-
-    sslPort = 443    
-    sslSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sslSocket.bind(("0.0.0.0", sslPort))
-    sslSocket.listen(10)
-    sslSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    
+    # sslPort = 443
+    # sslSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # sslSocket.bind(("0.0.0.0", sslPort))
+    # sslSocket.listen(10)
+    # sslSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    # Thread(target=loop, args=(sslSocket, sslPort, True,)).start()
     
     for s in sockets:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-
-    Thread(target=loop, args=(sslSocket, sslPort, True,)).start()
     
     for i in range(len(sockets)):
         port = ports[i]
         s = sockets[i]
         s.bind(("0.0.0.0", port))
         s.listen(10)
-        Thread(target=loop, args=(s, port, False,)).start()
+        Thread(target=loop, args=(s, port, True,)).start()

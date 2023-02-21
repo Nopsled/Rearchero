@@ -60,7 +60,7 @@ class iOS:
         
         self.PROCESS_NAME = "Archero"
         self.BUNDLE_NAME = "com.habby.archero.3Z58P8MNX4"
-        self.SCRIPT_NAME = "agent.js"
+        self.SCRIPT_NAME = "Scripts/Agent_ios.js"
     
     def killProcess(self):
         try:
@@ -117,7 +117,7 @@ class Android:
         
         self.PROCESS_NAME = "Archero"
         self.BUNDLE_NAME = "com.habby.archero"
-        self.SCRIPT_NAME = "Scripts/Networking.js"
+        self.SCRIPT_NAME = "Scripts/Agent_android.js"
         
     def killProcess(self):
         try:

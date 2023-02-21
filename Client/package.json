@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build-ios": "frida-compile -o Scripts/agent_ios.js -w index_ios.ts",
-    "build-android": "frida-compile -o Scripts/agent_android.js -w index_android.ts",
-    "attach": "run() { frida -U \"$1\" -l agent.js }; run"
+    "build-ios": "frida-compile -o Scripts/Agent_ios.js -w Index_ios.ts",
+    "build-android": "frida-compile -o Scripts/Agent_android.js -w Index_android.ts",
+    "attach": "run() { frida -U \"$1\" -l Scripts/Agent_android.js }; run"
   },
   "devDependencies": {
     "@types/frida-gum": "latest",
