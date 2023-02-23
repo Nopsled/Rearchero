@@ -131,7 +131,7 @@ class Android:
     # Do not kill process, only attach to already running process.
     def injectScript(self):
         try:
-            subprocess.run(["sudo", "frida", "-U", "-l", SELF.SCRIPT_NAME])
+            subprocess.run(["sudo", "frida", "-U", "Archero", "-l", self.SCRIPT_NAME])
             print(f'[+]: Script injected')
             return True
         except subprocess.CalledProcessError as e:
@@ -162,7 +162,7 @@ class Android:
                 print("[-]: Archero not found, waiting...")
 
     def start(self):
-        # self.startAndinject()
+        #self.killAndInject()
         subprocess.run(["sudo", "frida", "-U", "-l", self.SCRIPT_NAME, "-f",
                         self.BUNDLE_NAME])
         print(f'[+]: Process started and script injected')

@@ -1,0 +1,23 @@
+private const string HTTPPATH = "https://config-archero.habby.mobi/";
+private const string HTTPPATH_TEST = "https://config-archero-test.habby.mobi/";
+public const string Folder_Config = "data/config";
+public const string Folder_TiledMap = "data/tiledmap";
+public const string Folder_Excel = "data/excel";
+public static readonly string Folder_ABS = "ABS";
+
+[DONE] ----------- public const string Config_Game = "game_config.json"; 
+[DONE] -----------  public const string Config_EndlessReward = "dailySeasonData.json";
+[DONE] ----------- public const string Config_Maze = "MazeConfig.json";
+[DONE] ----------- public const string Config_MazeLine = "MazeLine.json";
+[DONE] ----------- public const string Config_PVPSeason = "pvp_season.json";
+[DONE] ----------- public const string Config_PVPReward = "pvp_reward.json";
+[DONE] ----------- public const string Config_FarmSeason = "farm_pvp_season.json";
+[DONE] ----------- public const string Config_FarmReward = "farm_pvp_rank_reward.json";
+[DONE] ----------- public const string Config_PVERankReward = "pve_stage_rank_reward.json";
+[DONE] ----------- public const string Config_PVERankWeekReward = "pve_week_rank_reward.json";
+[DONE] ----------- public const string Config_PVESeason = "pve_season.json";
+[DONE] ----------- public const string Config_ChoiceBox = "game_choice_box.json";
+[DONE] ----------- public const string Config_Christmas = "activity_christmas.json";
+[DONE] ----------- public const string Config_Treasure = "game_activity_treasure.json";
+[DONE] ----------- public const string Config_WorldCup = "worldcup_matches.json";
+[DONE] ----------- public const string Config_BattlePass = "battlePassConfigData.json";

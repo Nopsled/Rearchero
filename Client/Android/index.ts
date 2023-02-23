@@ -1,212 +1,57 @@
 import "frida-il2cpp-bridge";
-import { parse } from "path";
+import { FridaMultipleUnpinning } from "./multiple_unpinning";
+import { } from "./socket_patcher";
 
-// Java.perform(function () {
-//     // Get a reference to the socket library and the connect function
-//     var socket = Java.use("java.net.Socket");
-//     var connect = socket.connect.overload("java.net.SocketAddress", "int");
-
-//     // Replace the connect function with our own implementation
-//     connect.implementation = function (socketAddress: any, timeout: any) {
-//         // Check if the port is 443
-//         var port = socketAddress.getPort();
-//         console.log("[*] Port: " + port)
-        
-//         if (port === 443) {
-//             console.log("[*] Hooked connect function");
-
-//             // Connect to localhost over a socket
-//             var InetAddress = Java.use("java.net.InetAddress");
-//             var localhost = InetAddress.getByName("localhost");
-//             var localSocket = socket.$new();
-//             localSocket.connect(Java.cast(localhost, socketAddress.getClass()), timeout);
-//             return;
-//         }
-
-//         // Call the original connect function if the port is not 443
-//         connect.call(this, socketAddress, timeout);
-//     };
-// });
-
-const getaddrinfoPtr = Module.findExportByName(null, 'getaddrinfo');
-const connectPtr = Module.findExportByName(null, 'connect');
-const sendPtr = Module.findExportByName(null, 'send');
-const recvPtr = Module.findExportByName(null, 'recv');
-const ntohsPtr = Module.findExportByName(null, 'ntohs');
-const inet_addrPtr = Module.findExportByName(null, 'inet_addr');
-if (getaddrinfoPtr != null && connectPtr != null && sendPtr != null && recvPtr != null && ntohsPtr != null && inet_addrPtr != null) {
-    var getaddrinfoFunction = new NativeFunction(getaddrinfoPtr, 'int', ['pointer', 'pointer', 'pointer', 'pointer'])
-    var connectFunction = new NativeFunction(connectPtr, 'int', ['int', 'pointer', 'int'])
-    var sendFunction = new NativeFunction(sendPtr, 'int', ['int', 'pointer', 'int', 'int'])
-    var recvFunction = new NativeFunction(recvPtr, 'int', ['int', 'pointer', 'int', 'int'])
-    var ntohs = new NativeFunction(ntohsPtr, 'uint16', ['uint16']);
-    var inet_addr = new NativeFunction(inet_addrPtr, 'int', ['pointer']);
-    var connect = new NativeFunction(connectPtr, 'int', ['int', 'pointer', 'uint']);
-}
+// Start bypass
+FridaMultipleUnpinning.run()
 
 
-/**
- * Returns hex from an ArrayBuffer object
- * @param {ArrayBuffer} array Array to work with
- * @param {Boolean} hex Whether to convert to hex or plain string
- */
-function getReadable(array: any, hex: any) {
-    var result = new Uint8Array(array.byteLength)
-    result.set(array, 0)
-    if (hex == false) {
-        var str = ''
-        for (var i = 0; i < result.length; i++) {
-            str += String.fromCharCode(result[i])
-        }
-        return str
-    }
-    else {
-        var hexStr = ''
-        for (var i = 0; i < result.length; i++) {
-            hexStr += result[i].toString(16)
-        }
-        return hexStr
-    }
-}
-/**
- * Returns a nice formatting of a function with parameters
- * @param {string} functionName The name of the function to format
- * @param {string[]} params The function parameters as strings
- */
-function formatFunction(functionName: any, params: any, retval: any) {
-    var result = ''
-    result += functionName
-    result += '('
-    for (var i = 0; i < params.length; i++) {
-        if (i != 0) {
-            result += ', '
-        }
-        result += params[i]
-    }
-    result += ')'
-    if (retval) {
-        result += ' -> '
-        result += retval
-    }
-    return result
-}
-function replaceGadp() {
-    if (getaddrinfoPtr != null) {
-        Interceptor.replace(getaddrinfoPtr, new NativeCallback(function (name, service, req, pai) {
-            const nameStr = name.readUtf8String()
-            //const newNamePtr = Memory.allocUtf8String("10.0.1.9")
-            //console.log(formatFunction('getaddrinfo', [nameStr, service, req, pai]))
-            return getaddrinfoFunction(name, service, req, pai)
-        }, 'int', ['pointer', 'pointer', 'pointer', 'pointer']))
-    }
-}
-function replaceConnect() {
-    if (connectPtr != null) {
-        Interceptor.replace(connectPtr, new NativeCallback(function (socket, address, addressLen) {
-            var endpoint = {
-                ip: '',
-                port: 0
-            }
-            var ip = []
-            const ipPtr = address.add(4)
-            const portPtr = address.add(2)
-            const port = ntohs(portPtr.readU16())
-            endpoint.port = port
-
-            if (port == 443) {
-                ipPtr.writeInt(inet_addr(Memory.allocUtf8String("10.0.1.9")));
-                console.log(formatFunction('connect', [socket, JSON.stringify(endpoint), addressLen], ""))
-            }
-
-            ip.push(ipPtr.add(0).readU8())
-            ip.push(ipPtr.add(1).readU8())
-            ip.push(ipPtr.add(2).readU8())
-            ip.push(ipPtr.add(3).readU8())
-            endpoint.ip = ip.join('.');
-
-            var result = connectFunction(socket, address, addressLen)
-            return result
-        }, 'int', ['int', 'pointer', 'int']))
-    }
-}
-function replaceSend() {
-    if (sendPtr != null) {
-        Interceptor.replace(sendPtr, new NativeCallback(function (fd, buf, len, flags) {
-            var buffer = buf.readByteArray(len)
-            var result = sendFunction(fd, buf, len, flags)
-            console.log(formatFunction('send', [fd, getReadable(buffer, false), len, flags], result))
-            return result
-        }, 'int', ['int', 'pointer', 'int', 'int']))
-    }
-}
-function replaceRecv() {
-    if (recvPtr != null) {
-        Interceptor.replace(recvPtr, new NativeCallback(function (fd, buf, len, flags) {
-            var result = recvFunction(fd, buf, len, flags)
-            if (result > -1) {
-                var buffer = buf.readByteArray(result)
-                console.log(formatFunction('recv', [fd, getReadable(buffer, false), len, flags], result))
-            }
-            else {
-                console.log(formatFunction('recv', [fd, null, len, flags], result))
-            }
-            return result
-        }, 'int', ['int', 'pointer', 'int', 'int']))
-    }
-}
-
-
-//replaceConnect()
-//replaceGadp()
-//replaceSend()
-//replaceRecv()
 
 
 Il2Cpp.perform(() => {
 
-    console.log("[Agent]: Injected and rebuilded");    
+    console.log("[Agent]: Injected and rebuilded");
 
     const AssemblyCSharp = Il2Cpp.Domain.assembly("Assembly-CSharp").image;
-    const AssemblyUnityWebRequestModule = Il2Cpp.Domain.assembly("UnityEngine.UnityWebRequestModule").image;
-    const AssemblyMsCorLib = Il2Cpp.Domain.assembly("mscorlib").image;
+    //const AssemblyUnityWebRequestModule = Il2Cpp.Domain.assembly("UnityEngine.UnityWebRequestModule").image;
+    //const AssemblyMsCorLib = Il2Cpp.Domain.assembly("mscorlib").image;
     // const AssemblyHabbyMail = Il2Cpp.Domain.assembly("HabbyMailLib").image;
     // const AssemblyHabbyTool = Il2Cpp.Domain.assembly("HabbyToolLib").image;
     // const AssemblyLib = Il2Cpp.Domain.assembly("lib").image;
     // const AssemblyCoreModule = Il2Cpp.Domain.assembly("UnityEngine.CoreModule").image;
     // //const AssemblyLibA = Il2Cpp.Domain.assembly("lib").image;
-
-
     // const JsonObject = AssemblyHabbyTool.class("Habby.Tool.JsonObject");
     // const RequestPathObjectBase = AssemblyHabbyTool.class("Habby.Tool.Http.Tool.RequestPathObjectBase");
-
-    const NetConfig = AssemblyCSharp.class("Dxx.Net.NetConfig");
-    const NetManager = AssemblyCSharp.class("Dxx.Net.NetManager");
-    const NetResponse = AssemblyCSharp.class("Dxx.Net.NetResponse");
+    // const NetConfig = AssemblyCSharp.class("Dxx.Net.NetConfig");
+    // const NetManager = AssemblyCSharp.class("Dxx.Net.NetManager");
+    // const NetResponse = AssemblyCSharp.class("Dxx.Net.NetResponse");
     // const CCommonRespMsg = AssemblyCSharp.class("GameProtocol.CCommonRespMsg");;
 
-    // const Debug = AssemblyCoreModule.class("UnityEngine.Debug");
 
 
-    // const KCP = AssemblyLib.class("Habby.Net.KCPCommand.KCP");
+    const S3SendClient = AssemblyCSharp.class("S3SendClient");
+    const S3SendMgr = AssemblyCSharp.class("S3SendMgr");
+    const TGAnalytics = AssemblyCSharp.class("Habby.TGAnalytics")
+    const Debugger = AssemblyCSharp.class("Debugger");
+    const RequestFactory = AssemblyCSharp.class("Habby.Net.Requests.RequestFactory");
+    const UserData = AssemblyCSharp.class("Habby.Model.UserData");
+    const HabbyClient = AssemblyCSharp.class("HabbyClient");
+    const UserResponse = AssemblyCSharp.class("Habby.Net.Responses.SyncUserResponse");
+
+
     // const UpdateManager = AssemblyLib.class("Habby.UpdateTool.UpdateManager");
-
-
-    const CertificateHandler = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.CertificateHandler");
-    const UnityWebRequest = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.UnityWebRequest");
-    const DownloadHandler = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.DownloadHandler");
-    const UploadHandler = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.UploadHandler");
-
-    const HTTPSendClient = AssemblyCSharp.class("HTTPSendClient")
-    //const Encoding = AssemblyMsCorLib.class("Encoding")
-    const SHA256 = AssemblyMsCorLib.class("System.Security.Cryptography.SHA256")
-    const HashAlgorithm = AssemblyMsCorLib.class("System.Security.Cryptography.HashAlgorithm")
-    const RSA = AssemblyMsCorLib.class("System.Security.Cryptography.RSA")
-
-
+    // const CertificateHandler = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.CertificateHandler");
+    // const UnityWebRequest = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.UnityWebRequest");
+    // const DownloadHandler = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.DownloadHandler");
+    // const UploadHandler = AssemblyUnityWebRequestModule.class("UnityEngine.Networking.UploadHandler");
+    // const HTTPSendClient = AssemblyCSharp.class("HTTPSendClient")
+    // //const Encoding = AssemblyMsCorLib.class("Encoding")
+    // const SHA256 = AssemblyMsCorLib.class("System.Security.Cryptography.SHA256")
+    // const HashAlgorithm = AssemblyMsCorLib.class("System.Security.Cryptography.HashAlgorithm")
+    // const RSA = AssemblyMsCorLib.class("System.Security.Cryptography.RSA")
     // const HttpManager = AssemblyHabbyTool.class("Habby.Tool.Http.HttpManager");
     // const DownLoadManager = AssemblyHabbyTool.class("Habby.DownLoad.DownLoadManager");
     // const DownLoader = AssemblyHabbyTool.class("Habby.DownLoad.DownLoader");
-
 
     // Classes with activity + interest
     // const NetEnc = AssemblyCSharp.class("Habby.Archero.Crypto.NetEnc");
@@ -226,13 +71,61 @@ Il2Cpp.perform(() => {
     // const MailRequestPath = AssemblyHabbyMail.class("Habby.Mail.MailRequestPath");
     // const MailSetting = AssemblyHabbyMail.class("Habby.Mail.MailSetting");
     // const StoreChannel = AssemblyHabbyMail.class("Habby.Mail.StoreChannel");
-    // const HabbyClient = AssemblyCSharp.class("HabbyClient");
-
     //const CustomBinaryWriter = AssemblyCSharp.class("CustomBinaryWriter");
 
-    // Not interesting classes
-    // const Http = AssemblyCSharp.class("Habby.Archero.Network.Http");
 
+
+    // S3SendMgr.methods.forEach((method => {
+    //     S3SendMgr.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[S3SendMgr::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
+
+
+    // TGAnalytics.methods.forEach((method => {
+    //     //if (DebuggerIgnoredMethods.includes(method.name)) return;
+    //     TGAnalytics.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[TGAnalytics::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
+    // const DebuggerIgnoredMethods = [
+    //     'get_bDebug'
+    // ]
+    // Debugger.methods.forEach((method => {
+    //     if(DebuggerIgnoredMethods.includes(method.name)) return;
+    //     Debugger.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[Debugger::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
+    // UserResponse.methods.forEach((method => {
+    //     UserResponse.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[UserResponse::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
+    
+    // RequestFactory.methods.forEach((method => {
+    //     RequestFactory.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[RequestFactory::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
+    // UserData.methods.forEach((method => {
+    //     UserData.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[UserData::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
+    // HabbyClient.methods.forEach((method => {
+    //     HabbyClient.method(method.name).implementation = function (this: any, ...args: any[]) {
+    //         console.log("[HabbyClient::" + method.name + "]: " + args.toString());
+    //         return this.method(method.name).invoke(...args);
+    //     }
+    // }));
+ 
 
     // CertificateHandler.methods.forEach((method => {
     //     CertificateHandler.method(method.name).implementation = function (this: any, ...args: any[]) {
@@ -365,9 +258,6 @@ Il2Cpp.perform(() => {
 
 
 
-
-
-
     // UpdateManager.methods.forEach((method => {
     //     UpdateManager.method(method.name).implementation = function (this: any, ...args: any[]) {
     //         log("[UpdateManager::" + method.name + "]: " + args.toString());
@@ -390,12 +280,6 @@ Il2Cpp.perform(() => {
     //     }
     // }));
 
-    // HabbyClient.methods.forEach((method => {
-    //     HabbyClient.method(method.name).implementation = function (this: any, ...args: any[]) {
-    //         log("[HabbyClient::" + method.name + "]: " + args.toString());
-    //         return this.method(method.name).invoke(...args);
-    //     }
-    // }));
 
 
     // JsonObject.methods.forEach((method => {
@@ -553,119 +437,6 @@ Il2Cpp.perform(() => {
     //         return this.method(method.name).invoke(...args);
     //     }
     // }));
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // const SSLFunctions = [
-    //     //"SSL_read",
-    //     "SSL_write",
-    //     //"SSL_do_handshake",
-    //     //"SSL_is_dtls",
-    //     //"SSL_get_session",
-    //     //"SSL_in_init",
-    //     // "SSL_SESSION_dup",
-    //     // "SSL_SESSION_free",
-    //     // "SSL_get_ex_data",
-    //     // "SSL_SESSION_free",
-    //     // "SSL_get1_session",
-    //     // "SSL_in_init",
-    //     // "SSL_get_certificate",
-    //     // "SSL_get_peer_full_cert_chain",
-    //     "SSL_CTX_set_cert_verify_callback",
-    //     "SSL_CTX_set_info_callback"
-    // ]
-
-    // Process
-    //     .getModuleByName('libboringssl.dylib')
-    //     .enumerateExports().filter(exp => exp.type === 'function' && SSLFunctions.some(prefix => exp.name.indexOf(prefix) === 0))
-    //     .forEach(exp => {
-    //         Interceptor.attach(exp.address, {
-    //             onEnter: function (args) {
-    //                 this.exp = exp;
-
-    //                 console.log(JSON.stringify(this.exp) + " - entered with args: " + JSON.stringify(args));
-
-    //                 if (exp.name === "SSL_write") {
-    //                     // Get the SSL context pointer from the first argument
-    //                     var sslContextPtr = args[0];
-    //                     // Read the data buffer from the second argument
-    //                     var dataPtr = args[1];
-    //                     var dataLength = args[2].toInt32();
-    //                     var data = dataPtr.readByteArray(dataLength);
-
-    //                     console.log(data)
-    //                 }
-
-    //                 if (exp.name === "SSL_read") {
-    //                     this.dataPtr = args[1]
-    //                 }
-
-    //             },
-    //             onLeave: function (retval: any) {
-    //                 //console.log(JSON.stringify(this.exp) + " -  returned: " + retval.toInt32());
-    //                 //console.log("");
-
-    //                 if (this.exp.name === "SSL_read") {
-    //                     var bufferContent = this.dataPtr.readByteArray(retval.toInt32())
-    //                     console.log("SSL_Reading: " + bufferContent.length + " bytes " + retval.toInt32());
-    //                     console.log(bufferContent);
-    //                     console.log("");
-    //                     console.log("")
-    //                 }
-
-
-    //             }
-    //         });
-    //     });
-
-
-
-
-
-    // const Security = Module.findExportByName(null, 'SSL_write');
-    // if (Security != null) {
-    //     console.log("SSLWrite found!-----------------------------------");
-    //     Interceptor.attach(Security, {
-    //         onEnter: function (args) {
-    //             console.log("SSLWrite hooked................................")
-    //             // Get the arguments passed to the SSLWrite function
-    //             var sslContext = args[0];
-    //             var data = args[1];
-    //             var dataLength = args[2].toInt32();
-
-    //             // Read the data buffer as a byte array
-    //             if (dataLength > 0) {
-    //                 let buffer = data.readByteArray(dataLength)
-    //                 if (buffer != null) {
-    //                     var byteArray = new Uint8Array(buffer);
-
-    //                     // Convert the byte array to a string for logging
-    //                     var dataString = byteArray.reduce(function (str, byte) {
-    //                         return str + String.fromCharCode(byte);
-    //                     }, '');
-
-    //                     // Log the SSL data before encryption
-    //                     console.log('SSL data (before encryption): ' + dataString);
-    //                 }
-    //             }
-
-
-    //         }
-    //     });
-    // } else {
-    //     console.log("SSLWrite not found")
-    // }
 
 
 

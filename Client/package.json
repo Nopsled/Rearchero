@@ -1,12 +1,12 @@
 {
   "name": "rearchero",
-  "main": "index_ios.ts",
-  "version": "0.1.0",
+  "main": "Android/index.ts",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
-    "build-ios": "frida-compile -o Scripts/Agent_ios.js -w Index_ios.ts",
-    "build-android": "frida-compile -o Scripts/Agent_android.js -w Index_android.ts",
-    "attach": "run() { frida -U \"$1\" -l Scripts/Agent_android.js }; run"
+    "build-ios": "frida-compile -o iOS/agent.js -w iOS/index.ts",
+    "build-android": "frida-compile -o Android/agent.js -w Android/index.ts",
+    "attach": "run() { frida -U \"$1\" -l Android/agent.js }; run"
   },
   "devDependencies": {
     "@types/frida-gum": "latest",

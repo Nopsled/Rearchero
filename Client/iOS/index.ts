@@ -1,5 +1,5 @@
 import "frida-il2cpp-bridge";
-// sudo frida -l _.js "Archero" --runtime=v8
+
 
 function log(message: string): void {
     console.log(message);

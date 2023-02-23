@@ -14,18 +14,12 @@ import base64
 import subprocess
 from OpenSSL import crypto
 
-# enable/disable proxy:
-# adb shell settings put global http_proxy 127.0.0.1: 8889
-# or dynamically taking my pc as host
-# adb shell settings put global http_proxy $(ipconfig getifaddr en0): 8888
-# To disable that proxy use:
-# adb shell settings put global http_proxy: 0
+import Config
 
-# emulator -avd Pixel_6_API_32
 
 class GameWorldManager:
     instances = []
-    
+
     def broadcastWorldCommand():
         pass
             
@@ -37,23 +31,8 @@ class GameWorldManager:
 class GameObject:
     def __init__(self, id=random.randint(0, 999), x=random.randint(0, 300), y=random.randint(0, 300), scale=random.randint(10,100), type=random.randint(0,3)):
         pass
-        
-    def __repr__(self):
-        return f"{self.id},\n{self.x},\n{self.y},\n{self.unk1},\n{self.scale},\n{self.type},\n{self.unk4},\n{self.unk5}"
-    
-    def get(self):
-        return [self.id, self.x, self.y, self.unk1, self.scale, self.type, self.unk4, self.unk5]
 class PlayerObject:
     def __init__(self, socket, id=1, y=0, x=0, angle=0.0, usingItemID=1, unk2=0, unk3=0, unk4=None, clanLeader=0, skin=0, usingAccessoryID=0, showSkull=0, unk9=0):
-        pass
-        
-    def setResource(self, resourceType="wood", amount=10):
-        pass
-                    
-    def __repr__(self):
-        pass
-    
-    def get(self):
         pass
 
 
@@ -76,7 +55,6 @@ def generate_cert():
     # Write the private key to a file
     with open("Certificates/key.pem", "wb") as f:
         f.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, pkey))
-
 
 
 
@@ -166,6 +144,8 @@ class Client:
                 print(f'[-] Cannot recv data on socket, error: {e}')
 
             if len(rawData) > 0:
+                print(rawData)
+                self.socket.send(rawData)
                 decodedData = rawData.decode()
                 strippedData = decodedData.strip()
                 #print(f'[Recv (port:{self.port}]: {decodedData}')
@@ -175,6 +155,27 @@ class Client:
                 data2 = urllib.parse.parse_qs(strippedData)
                 print(data2)
                 print("")
+
+                for endpoint in endpoints:
+                    if endpoint in decodedData:
+                        print(f"[+] Client requested: {endpoint}, response sent back to client.")
+                        #response = Config.Header.RESPONSE_HEADER + endpoints[endpoint]
+                        #self.socket.send(response)
+                        #print(response)
+                        break
+                    
+                # if "data/config/MazeConfig.json" in decodedData:
+                #     response = Config.Header.RESPONSE_HEADER + Config.GameConfig.RESPONSE
+                #     print("[+] Client requested: data/config/game_config.json, response sent back to client.")
+                #     self.socket.send(response)
+                #     print(response)
+                # elif "data/config/pvp_reward.json" in decodedData:
+                #     response = Config.Header.RESPONSE_HEADER + Config.GameConfig.RESPONSE
+                #     print("[+] Client requested: data/config/game_config.json, response sent back to client.")
+                #     self.socket.send(response)
+                #     print(response)
+                # elif 
+
 
 
                 if re.search(r"users/\d+/announcements", decodedData):
@@ -242,8 +243,7 @@ class Client:
                     print(
                         "[+] API request: /sync, responded back to client.")
                     print("[+] Response: " + response.decode())
-                    
-                    
+
                 # POST /sync HTTP/1.1 (receiver.habby.mobi)
                 if "sync" in decodedData:
                     response = b'''HTTP/2 200 OK
@@ -299,20 +299,21 @@ def onNewClient(clientSocket, clientAddress, isSSL):
 def loop(socket, port, isSSL):
     print(f'[+] Server started 0.0.0.0:{port}. Waiting for connections...')
     while True:
-        (clientSocket, clientAddress) = socket.accept()
+        (client_socket, client_address) = socket.accept()
         if isSSL == True:
             try:
                 context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
                 context.load_cert_chain(certfile="Certificates/cert.pem", keyfile="Certificates/key.pem")
-                clientSocket = context.wrap_socket(clientSocket, server_side=True)
-                print(f'[+] SSL connection established: {clientAddress}')
+                client_socket = context.wrap_socket(client_socket, server_side=True)
+                print(f'[+] SSL connection established: {client_address}')
             except Exception as e:
                 print(f'[-] SSL connection errored: {e}')
                 break
         else:
-            print(f'[+] Connection established to no SSL socket: {clientAddress}')
+            print(
+                f'[+] Connection established to no SSL socket: {client_address}')
         
-        onNewClient(clientSocket, clientAddress, isSSL)
+        onNewClient(client_socket, client_address, isSSL)
 
 
 if __name__ == "__main__":   
@@ -333,23 +334,28 @@ if __name__ == "__main__":
     # Generate a private key
     pkey = crypto.PKey()
     pkey.generate_key(crypto.TYPE_RSA, 2048)
-
-    # Generate the certificate
     generate_cert()
     
-    # sslPort = 443
-    # sslSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # sslSocket.bind(("0.0.0.0", sslPort))
-    # sslSocket.listen(10)
-    # sslSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    # Thread(target=loop, args=(sslSocket, sslPort, True,)).start()
+    # Load the Burp Suite-generated certificate
+    #with open('Certificates/burp_cert.crt', 'rb') as f:
+    #    cert_data = f.read()
+    #context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    #context.load_cert_chain('Certificates/burp_cert.crt')
     
-    for s in sockets:
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     
-    for i in range(len(sockets)):
-        port = ports[i]
-        s = sockets[i]
-        s.bind(("0.0.0.0", port))
-        s.listen(10)
-        Thread(target=loop, args=(s, port, True,)).start()
+    sslPort = 443
+    sslSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sslSocket.bind(("0.0.0.0", sslPort))
+    sslSocket.listen(10)
+    sslSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    Thread(target=loop, args=(sslSocket, sslPort, True,)).start()
+    
+    #for s in sockets:
+    #    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    
+    # for i in range(len(sockets)):
+    #     port = ports[i]
+    #     s = sockets[i]
+    #     s.bind(("0.0.0.0", port))
+    #     s.listen(10)
+    #     Thread(target=loop, args=(s, port, True,)).start()
