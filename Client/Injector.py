@@ -3,12 +3,13 @@ import subprocess
 import time
 import frida
 import sys
+import os
 
 class MacOSX:
     def __init__(self):
         self.PROCESS_NAME = "Archero"
         self.SCRIPT_NAME = "agent.js"
-        self.PATH_NAME = r"/Users/martinjakobsson/Library/Containers/io.playcover.PlayCover/Archero.app"
+        self.PATH_NAME = r'/Users/'+os.getlogin()+'/Library/Containers/io.playcover.PlayCover/Archero.app'
         
     def start(self):
         while True:
@@ -60,7 +61,7 @@ class iOS:
         
         self.PROCESS_NAME = "Archero"
         self.BUNDLE_NAME = "com.habby.archero.3Z58P8MNX4"
-        self.SCRIPT_NAME = "Scripts/Agent_ios.js"
+        self.SCRIPT_NAME = "iOS/agent.js"
     
     def killProcess(self):
         try:
@@ -117,7 +118,7 @@ class Android:
         
         self.PROCESS_NAME = "Archero"
         self.BUNDLE_NAME = "com.habby.archero"
-        self.SCRIPT_NAME = "Scripts/Agent_android.js"
+        self.SCRIPT_NAME = "Android/agent.js"
         
     def killProcess(self):
         try:
@@ -173,12 +174,7 @@ IS_ANDROID = 1
 IS_IOS = 0
 IS_MACOSX = 0 
 
-def my_message_handler(message, payload):
-    print(message)
-
-
 if __name__ == "__main__":
-    
     if IS_ANDROID:
         android = Android()
         android.start()
@@ -188,24 +184,3 @@ if __name__ == "__main__":
     elif IS_MACOSX:
         computer = Computer()
         computer.start()
-
-    # jscode = open("agent_android.js").read()
-    # device = frida.get_device("emulator-5554")
-    # processId = device.spawn('com.habby.archero')
-    # session = device.attach(processId)
-    # time.sleep(2)
-    # script = session.create_script(jscode)
-    # script.on("message", my_message_handler)
-    # script.load()
-    
-    # print('[*]: Attched to Archero process')
-    # command = ""
-    # while True:
-    #     command = input(
-    #         "Enter command:\n1: Exit\n2: Call secret function\n3: Hook Secret\nchoice:")
-    #     if command == "1":
-    #         break
-    #     elif command == "2":
-    #         script.exports.callsecretfunction()
-    #     elif command2 == "3":
-    #         script.exports.hooksecretfunction()

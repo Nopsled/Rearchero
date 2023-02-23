@@ -8,7 +8,7 @@
 export class FridaMultipleUnpinning {
 
   
-    public static run() {
+    public static bypass(isDebugging = false) {
         Java.perform(function () {
             console.log('');
             console.log('======');
@@ -39,11 +39,13 @@ export class FridaMultipleUnpinning {
             try {
                 // Override the init method, specifying the custom TrustManager
                 SSLContext_init.implementation = function (keyManager: any, trustManager: any, secureRandom: any) {
-                    console.log('[+] Bypassing Trustmanager (Android < 7) pinner');
+                    if (isDebugging)
+                        console.log('[+] Bypassing Trustmanager (Android < 7) pinner');
                     SSLContext_init.call(this, keyManager, TrustManagers, secureRandom);
                 };
             } catch (err) {
-                console.log('[-] TrustManager (Android < 7) pinner not found');
+                if(isDebugging)
+                    console.log('[-] TrustManager (Android < 7) pinner not found');
                 //console.log(err);
             }
 
@@ -56,11 +58,14 @@ export class FridaMultipleUnpinning {
                 // Bypass OkHTTPv3 {1}
                 var okhttp3_Activity_1 = Java.use('okhttp3.CertificatePinner');
                 okhttp3_Activity_1.check.overload('java.lang.String', 'java.util.List').implementation = function (a: any, b: any) {
-                    console.log('[+] Bypassing OkHTTPv3 {1}: ' + a);
+                    if (isDebugging)
+                        console.log('[+] Bypassing OkHTTPv3 {1}: ' + a);
+                    
                     return;
                 };
             } catch (err) {
-                console.log('[-] OkHTTPv3 {1} pinner not found');
+                if (isDebugging)
+                    console.log('[-] OkHTTPv3 {1} pinner not found');
                 //console.log(err);
             }
             try {
@@ -68,22 +73,26 @@ export class FridaMultipleUnpinning {
                 // This method of CertificatePinner.check is deprecated but could be found in some old Android apps
                 var okhttp3_Activity_2 = Java.use('okhttp3.CertificatePinner');
                 okhttp3_Activity_2.check.overload('java.lang.String', 'java.security.cert.Certificate').implementation = function (a: any, b: any) {
-                    console.log('[+] Bypassing OkHTTPv3 {2}: ' + a);
+                    if (isDebugging)
+                        console.log('[+] Bypassing OkHTTPv3 {2}: ' + a);
                     return;
                 };
             } catch (err) {
-                console.log('[-] OkHTTPv3 {2} pinner not found');
+                if (isDebugging)
+                    console.log('[-] OkHTTPv3 {2} pinner not found');
                 //console.log(err);
             }
             try {
                 // Bypass OkHTTPv3 {3}
                 var okhttp3_Activity_3 = Java.use('okhttp3.CertificatePinner');
                 okhttp3_Activity_3.check.overload('java.lang.String', '[Ljava.security.cert.Certificate;').implementation = function (a: any, b: any) {
-                    console.log('[+] Bypassing OkHTTPv3 {3}: ' + a);
+                    if (isDebugging)
+                        console.log('[+] Bypassing OkHTTPv3 {3}: ' + a);
                     return;
                 };
             } catch (err) {
-                console.log('[-] OkHTTPv3 {3} pinner not found');
+                if(isDebugging)
+                    console.log('[-] OkHTTPv3 {3} pinner not found');
                 //console.log(err);
             }
             try {
@@ -91,11 +100,14 @@ export class FridaMultipleUnpinning {
                 var okhttp3_Activity_4 = Java.use('okhttp3.CertificatePinner');
                 //okhttp3_Activity_4['check$okhttp'].implementation = function(a, b) {
                 okhttp3_Activity_4.check$okhttp.overload('java.lang.String', 'kotlin.jvm.functions.Function0').implementation = function (a: any, b: any) {
-                    console.log('[+] Bypassing OkHTTPv3 {4}: ' + a);
+                    if(isDebugging)
+                        console.log('[+] Bypassing OkHTTPv3 {4}: ' + a);
+                    
                     return;
                 };
             } catch (err) {
-                console.log('[-] OkHTTPv3 {4} pinner not found');
+                if (isDebugging)
+                    console.log('[-] OkHTTPv3 {4} pinner not found');
                 //console.log(err);
             }
 
@@ -106,22 +118,23 @@ export class FridaMultipleUnpinning {
                 var array_list = Java.use("java.util.ArrayList");
                 var TrustManagerImpl_Activity_1 = Java.use('com.android.org.conscrypt.TrustManagerImpl');
                 TrustManagerImpl_Activity_1.checkTrustedRecursive.implementation = function (certs: any, ocspData: any, tlsSctData: any, host: any, clientAuth: any, untrustedChain: any, trustAnchorChain: any, used: any) {
-                    console.log('[+] Bypassing TrustManagerImpl (Android > 7) checkTrustedRecursive check: ' + host);
+                    if (isDebugging)
+                        console.log('[+] Bypassing TrustManagerImpl (Android > 7) checkTrustedRecursive check: ' + host);
                     return array_list.$new();
                 };
             } catch (err) {
-                console.log('[-] TrustManagerImpl (Android > 7) checkTrustedRecursive check not found');
+                if (isDebugging) console.log('[-] TrustManagerImpl (Android > 7) checkTrustedRecursive check not found');
                 //console.log(err);
             }
             try {
                 // Bypass TrustManagerImpl (Android > 7) {2} (probably no more necessary)
                 var TrustManagerImpl_Activity_2 = Java.use('com.android.org.conscrypt.TrustManagerImpl');
                 TrustManagerImpl_Activity_2.verifyChain.implementation = function (untrustedChain: any, trustAnchorChain: any, host: any, clientAuth: any, ocspData: any, tlsSctData: any) {
-                    console.log('[+] Bypassing TrustManagerImpl (Android > 7) verifyChain check: ' + host);
+                    if (isDebugging) console.log('[+] Bypassing TrustManagerImpl (Android > 7) verifyChain check: ' + host);
                     return untrustedChain;
                 };
             } catch (err) {
-                console.log('[-] TrustManagerImpl (Android > 7) verifyChain check not found');
+                if (isDebugging) console.log('[-] TrustManagerImpl (Android > 7) verifyChain check not found');
                 //console.log(err);
             }
         });

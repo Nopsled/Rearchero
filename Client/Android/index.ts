@@ -1,10 +1,11 @@
 import "frida-il2cpp-bridge";
 import { FridaMultipleUnpinning } from "./multiple_unpinning";
-import { } from "./socket_patcher";
+import { Patcher } from "./socket_patcher";
 
-// Start bypass
-FridaMultipleUnpinning.run()
-
+// Start bypass SSL pinning
+FridaMultipleUnpinning.bypass(false);
+// Patch socket connect for port 443 to localhost
+Patcher.PatchConnect("10.0.1.9", [443]);
 
 
 
@@ -71,28 +72,28 @@ Il2Cpp.perform(() => {
     // const MailRequestPath = AssemblyHabbyMail.class("Habby.Mail.MailRequestPath");
     // const MailSetting = AssemblyHabbyMail.class("Habby.Mail.MailSetting");
     // const StoreChannel = AssemblyHabbyMail.class("Habby.Mail.StoreChannel");
-    //const CustomBinaryWriter = AssemblyCSharp.class("CustomBinaryWriter");
+    // const CustomBinaryWriter = AssemblyCSharp.class("CustomBinaryWriter");
 
 
 
-    // S3SendMgr.methods.forEach((method => {
-    //     S3SendMgr.method(method.name).implementation = function (this: any, ...args: any[]) {
-    //         console.log("[S3SendMgr::" + method.name + "]: " + args.toString());
-    //         return this.method(method.name).invoke(...args);
-    //     }
-    // }));
+    S3SendMgr.methods.forEach((method => {
+        S3SendMgr.method(method.name).implementation = function (this: any, ...args: any[]) {
+            console.log("[S3SendMgr::" + method.name + "]: " + args.toString());
+            return this.method(method.name).invoke(...args);
+        }
+    }));
 
 
-    // TGAnalytics.methods.forEach((method => {
-    //     //if (DebuggerIgnoredMethods.includes(method.name)) return;
-    //     TGAnalytics.method(method.name).implementation = function (this: any, ...args: any[]) {
-    //         console.log("[TGAnalytics::" + method.name + "]: " + args.toString());
-    //         return this.method(method.name).invoke(...args);
-    //     }
-    // }));
-    // const DebuggerIgnoredMethods = [
-    //     'get_bDebug'
-    // ]
+    TGAnalytics.methods.forEach((method => {
+        //if (DebuggerIgnoredMethods.includes(method.name)) return;
+        TGAnalytics.method(method.name).implementation = function (this: any, ...args: any[]) {
+            console.log("[TGAnalytics::" + method.name + "]: " + args.toString());
+            return this.method(method.name).invoke(...args);
+        }
+    }));
+    const DebuggerIgnoredMethods = [
+        'get_bDebug'
+    ]
     // Debugger.methods.forEach((method => {
     //     if(DebuggerIgnoredMethods.includes(method.name)) return;
     //     Debugger.method(method.name).implementation = function (this: any, ...args: any[]) {
@@ -106,25 +107,24 @@ Il2Cpp.perform(() => {
     //         return this.method(method.name).invoke(...args);
     //     }
     // }));
-    
-    // RequestFactory.methods.forEach((method => {
-    //     RequestFactory.method(method.name).implementation = function (this: any, ...args: any[]) {
-    //         console.log("[RequestFactory::" + method.name + "]: " + args.toString());
-    //         return this.method(method.name).invoke(...args);
-    //     }
-    // }));
-    // UserData.methods.forEach((method => {
-    //     UserData.method(method.name).implementation = function (this: any, ...args: any[]) {
-    //         console.log("[UserData::" + method.name + "]: " + args.toString());
-    //         return this.method(method.name).invoke(...args);
-    //     }
-    // }));
-    // HabbyClient.methods.forEach((method => {
-    //     HabbyClient.method(method.name).implementation = function (this: any, ...args: any[]) {
-    //         console.log("[HabbyClient::" + method.name + "]: " + args.toString());
-    //         return this.method(method.name).invoke(...args);
-    //     }
-    // }));
+    RequestFactory.methods.forEach((method => {
+        RequestFactory.method(method.name).implementation = function (this: any, ...args: any[]) {
+            console.log("[RequestFactory::" + method.name + "]: " + args.toString());
+            return this.method(method.name).invoke(...args);
+        }
+    }));
+    UserData.methods.forEach((method => {
+        UserData.method(method.name).implementation = function (this: any, ...args: any[]) {
+            console.log("[UserData::" + method.name + "]: " + args.toString());
+            return this.method(method.name).invoke(...args);
+        }
+    }));
+    HabbyClient.methods.forEach((method => {
+        HabbyClient.method(method.name).implementation = function (this: any, ...args: any[]) {
+            console.log("[HabbyClient::" + method.name + "]: " + args.toString());
+            return this.method(method.name).invoke(...args);
+        }
+    }));
  
 
     // CertificateHandler.methods.forEach((method => {
@@ -437,49 +437,5 @@ Il2Cpp.perform(() => {
     //         return this.method(method.name).invoke(...args);
     //     }
     // }));
-
-
-
-
-    // const SocketFunctions = [
-    //     //'connect',
-    //     //'recv',
-    //     'send',
-    //     //'sendto',
-    //     //'read',
-    //     //'readfrom'
-    //     //'write'
-    // ]
-    // Process
-    //     .getModuleByName('libSystem.B.dylib')
-    //     .enumerateExports().filter(exp => exp.type === 'function' && SocketFunctions.some(prefix => exp.name.indexOf(prefix) === 0))
-    //     .forEach(exp => {
-    //         Interceptor.attach(exp.address, {
-    //             onEnter: function (args) {
-    //                 var fd = args[0].toInt32();
-    //                 var socktype = Socket.type(fd);
-    //                 //var data = args[1]
-    //                 //var size = args[2].toInt32();
-
-    //                 if (socktype !== 'tcp' && socktype !== 'tcp6')
-    //                     return;
-    //                 var address = Socket.peerAddress(fd);
-    //                 if (address === null)
-    //                     return;
-
-    //                 var data = args[1]
-    //                 var size = args[2].toInt32();
-    //                 var buffer = data.readByteArray(size);
-    //                 console.log(exp.name + "(" + fd + ")" + JSON.stringify(address) + " – " + size + " bytes (" + socktype + ")");
-    //                 if (buffer != null)
-    //                     console.log(hexdump(buffer, { offset: 0, length: 800, header: false, ansi: true }));
-
-    //             },
-    //             onLeave: function (retval) {
-    //             }
-    //         })
-    //     })
-
-
 
 });

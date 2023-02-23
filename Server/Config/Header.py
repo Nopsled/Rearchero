@@ -1,8 +1,15 @@
+import datetime
+
+# get the current time in GMT
+now = datetime.datetime.utcnow()
+# format the time as a string in the desired format
+formatted_time = now.strftime('%a, %d %b %Y %H:%M:%S %Z')
+
 RESPONSE_HEADER = b'''HTTP/2 200 OK
 Content-Type: application/json; charset=UTF-8
 Transfer-Encoding: chunked
 Connection: keep-alive
-Last-Modified: Tue, 16 Aug 2022 12:34:12 GMT
+Last-Modified: '''+formatted_time.encode()+b'''
 x-amz-server-side-encryption: AES256
 x-amz-version-id: tZRusENvTn.kue_2SfbTw8S9WaZIc4FN
 Server: AmazonS3

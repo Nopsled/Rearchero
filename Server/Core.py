@@ -13,8 +13,11 @@ import urllib.parse
 import base64
 import subprocess
 from OpenSSL import crypto
+import os
+import time
 
 import Config
+import Config.Header
 
 
 class GameWorldManager:
@@ -49,66 +52,31 @@ def generate_cert():
     cert.sign(pkey, 'sha256')
 
     # Write the certificate to a file
-    with open("Certificates/cert.pem", "wb") as f:
+    with open("cert.pem", "wb") as f:
         f.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
 
     # Write the private key to a file
-    with open("Certificates/key.pem", "wb") as f:
+    with open("key.pem", "wb") as f:
         f.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, pkey))
 
 
+def parse_socket_data(socket_data):
+    data = socket_data.decode('utf-8')
+    # separate headers from data
+    headers, data = re.split('\r\n\r\n', data, 1)
+    # parse headers into dictionary
+    header_lines = headers.split('\r\n')
+    header_dict = {}
+    for line in header_lines:
+        key, value = line.split(': ', 1)
+        header_dict[key] = value
+    return header_dict, data.encode('utf-8')
 
 class NetUtility:
 
     @staticmethod
     def parse_data(data):
         pass
-        # request_line, headers = data.split('\n', 1)
-        # method, path, protocol = request_line.split()
-
-        # parsed_path = urllib.parse.urlparse(path)
-        # query_params = urllib.parse.parse_qs(parsed_path.query)
-
-        # store = query_params['store'][0]
-        # app_language = query_params['appLanguage'][0]
-        # system_language = query_params['systemLanguage'][0]
-        # app_version = query_params['appVersion'][0]
-        # device_model = query_params['deviceModel'][0]
-
-        # custom_data = query_params['customData'][0]
-        # custom_data_dict = json.loads(urllib.parse.unquote(custom_data))
-
-        # sdk_version = headers.split("\n")[0].split(":")[1].strip()
-        # client_data_str = headers.split("\n")[1].split(":")[1].strip()
-        # #client_data = json.loads(client_data_str)
-        # content_type = headers.split("\n")[2].split(":")[1].strip()
-        # if_none_match = headers.split("\n")[3].split(":")[1].strip()
-        # host = headers.split("\n")[4].split(":")[1].strip()
-        # accept_encoding = headers.split("\n")[5].split(":")[1].strip()
-        # connection = headers.split("\n")[6].split(":")[1].strip()
-        # keep_alive = headers.split("\n")[7].split(":")[1].strip()
-        # te = headers.split("\n")[8].split(":")[1].strip()
-        # user_agent = headers.split("\n")[9]
-        
-        # print(f'[-] SDK Version: {sdk_version}')
-        # #print(f'[-] Client Data: {client_data}')
-        # print(f'[-] Content Type: {content_type}')
-        # print(f'[-] If None Match: {if_none_match}')
-        # print(f'[-] Host: {host}')
-        # print(f'[-] Accept Encoding: {accept_encoding}')
-        # print(f'[-] Connection: {connection}')
-        # print(f'[-] Keep Alive: {keep_alive}')
-        # print(f'[-] TE: {te}')
-        # print(f'[-] User Agent: {user_agent}')
-        # print(f'[-] Store: {store}')
-        # print(f'[-] App Language: {app_language}')
-        # print(f'[-] System Language: {system_language}')
-        # print(f'[-] App Version: {app_version}')
-        # print(f'[-] Device Model: {device_model}')
-        # print(f'[-] Custom Data: {custom_data}')
-        # print(f'[-] Custom Data Dict: {custom_data_dict}')
-        # print('')
-        # print('')
 
     
 
@@ -136,61 +104,84 @@ class Client:
 
     def recv(self):
         while True:
-            time.sleep(0.5)
+            time.sleep(0.25)
+            
+            if self.socket.fileno() == -1:
+                print("[-] Socket is closed")
+                break
             
             try: 
-                rawData = self.socket.recv(4096)
+                received_data = self.socket.recv(2048)
             except Exception as e:
                 print(f'[-] Cannot recv data on socket, error: {e}')
 
-            if len(rawData) > 0:
-                print(rawData)
-                self.socket.send(rawData)
-                decodedData = rawData.decode()
-                strippedData = decodedData.strip()
-                #print(f'[Recv (port:{self.port}]: {decodedData}')
-                
+            if len(received_data) > 0:
 
-                # Split the data into the request and headers
+
+
+                # assume received_data is the received data from the socket
+                data = parse_socket_data(received_data)
+
+                # print headers and data
+                print('Headers:')
+                for key, value in headers.items():
+                    print(f'{key}: {value}')
+                print(f'Data: {data}')
+
+                decodedData = received_data.decode()
+                strippedData = decodedData.strip()
                 data2 = urllib.parse.parse_qs(strippedData)
-                print(data2)
                 print("")
 
-                for endpoint in endpoints:
+                for endpoint in Config.Header.ENDPOINTS:
                     if endpoint in decodedData:
                         print(f"[+] Client requested: {endpoint}, response sent back to client.")
-                        #response = Config.Header.RESPONSE_HEADER + endpoints[endpoint]
-                        #self.socket.send(response)
-                        #print(response)
+                        response = Config.Header.RESPONSE_HEADER + endpoints[endpoint]
+                        self.socket.send(response)
+                        print(response)
                         break
+    
+                if "announcements" in decodedData:
+                    formatted_time = time.strftime(
+                        '%a, %d %b %Y %H:%M:%S GMT', time.gmtime())
+                    response = (b'HTTP/2 200 OK\r\n'
+                                       b'Content-Type: application/json; charset=UTF-8\r\n'
+                                       b'Content-length: 29\r\n'
+                                       b'Connection: close\r\n'
+                                       b'Date: ' +
+                                       formatted_time.encode('utf-8') + b'\r\n'
+                                       b'X-Powered-By: Express\r\n'
+                                       b'ETag: W/"1d-qTxd3JymBGkwYt6o0i73c1lZiUA"\r\n'
+                                       b'X-Cache: Miss from cloudfront\r\n'
+                                       b'Via: 1.1 cfd5f3f9049bdb2faa50d6a13e6adb78.cloudfront.net (CloudFront)\r\n'
+                                       b'X-Amz-Cf-Pop: ARN56-P1\r\n'
+                                       b'X-Amz-Cf-Id: 0-eFHmiIVp3rpMPZcP8jAo5WLA3f1m-zO5vyG8OyUQGHDqlpyvuUCA==\r\n\r\n'
+                                       b''' {
+                                           "code": 0,
+                                           "data": {
+                                               "list": []
+                                           }
+                                       }''')
                     
-                # if "data/config/MazeConfig.json" in decodedData:
-                #     response = Config.Header.RESPONSE_HEADER + Config.GameConfig.RESPONSE
-                #     print("[+] Client requested: data/config/game_config.json, response sent back to client.")
-                #     self.socket.send(response)
-                #     print(response)
-                # elif "data/config/pvp_reward.json" in decodedData:
-                #     response = Config.Header.RESPONSE_HEADER + Config.GameConfig.RESPONSE
-                #     print("[+] Client requested: data/config/game_config.json, response sent back to client.")
-                #     self.socket.send(response)
-                #     print(response)
-                # elif 
-
-
-
-                if re.search(r"users/\d+/announcements", decodedData):
-                    response = b"""HTTP/1.1 304 Not Modified
-                    Connection: close
-                    Vary: Accept-Encoding
-                    Date: Mon, 20 Feb 2023 19:17:23 GMT
-                    X-Powered-By: Express
-                    ETag: W/"1d-qTxd3JymBGkwYt6o0i73c1lZiUA"
-                    X-Cache: Miss from cloudfront
-                    Via: 1.1 648da69bb4c2221c403be08a06311d98.cloudfront.net (CloudFront)
-                    X-Amz-Cf-Pop: ARN56-P1
-                    X-Amz-Cf-Id: YSLMFVKf-ZDsrj_ZRkCdupmcUJyeqrh3HdcMryFo8vZIw_mx7frGNQ==\r\n\r\n"""
+                    # response = b'''HTTP/1.1 304 Not Modified
+                    # Connection: close
+                    # Vary: Accept-Encoding
+                    # Date: Mon, 20 Feb 2023 19:17:23 GMT
+                    # X-Powered-By: Express
+                    # ETag: W/"1d-qTxd3JymBGkwYt6o0i73c1lZiUA"
+                    # X-Cache: Miss from cloudfront
+                    # Via: 1.1 648da69bb4c2221c403be08a06311d98.cloudfront.net (CloudFront)
+                    # X-Amz-Cf-Pop: ARN56-P1
+                    # X-Amz-Cf-Id: YSLMFVKf-ZDsrj_ZRkCdupmcUJyeqrh3HdcMryFo8vZIw_mx7frGNQ==\r\n\r\n
+                    # {
+                    #     "code": 0,
+                    #     "data": {
+                    #         "list": []
+                    #     }
+                    # }'''
+                    print(
+                        "[+] API request: users/<id>/announcements, response sent back to client.")
                     self.socket.send(response)
-                    print("[+] API request: users/<id>/announcements, response sent back to client.")
                     print(response)
                     print("")
 
@@ -287,8 +278,6 @@ class Client:
 
 
 def onNewClient(clientSocket, clientAddress, isSSL):
-    print(f'[+]: New client connected: {clientAddress}')
-    
     client = Client(clientSocket)
     #GameWorldManager.instances.append(client)
     Thread(target=client.recv).start()
@@ -301,19 +290,19 @@ def loop(socket, port, isSSL):
     while True:
         (client_socket, client_address) = socket.accept()
         if isSSL == True:
+            context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            context.load_cert_chain(certfile="cert.pem", keyfile="key.pem")
             try:
-                context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-                context.load_cert_chain(certfile="Certificates/cert.pem", keyfile="Certificates/key.pem")
-                client_socket = context.wrap_socket(client_socket, server_side=True)
-                print(f'[+] SSL connection established: {client_address}')
-            except Exception as e:
-                print(f'[-] SSL connection errored: {e}')
-                break
-        else:
-            print(
-                f'[+] Connection established to no SSL socket: {client_address}')
-        
+                client_socket = context.wrap_socket(
+                    client_socket, server_side=True)
+                print(f'[+] SSL handshake successful: {client_address}')
+            except ssl.SSLError as e:
+                print(f'[-] SSL handshake failed: {e}')
+                client_socket.close()
+                continue
+            
         onNewClient(client_socket, client_address, isSSL)
+
 
 
 if __name__ == "__main__":   
@@ -321,7 +310,7 @@ if __name__ == "__main__":
     # Kill process if running earlier
     subprocess.run(["sudo", "pkill", "python"])
 
-
+    os.environ['PYTHONASYNCIODEBUG'] = '1'
 
     # 12132, 9952, 8080, (443)
     ports = [443]

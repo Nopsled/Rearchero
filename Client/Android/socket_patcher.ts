@@ -1,5 +1,4 @@
 
-export class Patcher {
 
 
 const getaddrinfoPtr = Module.findExportByName(null, 'getaddrinfo');
@@ -18,115 +17,160 @@ if (getaddrinfoPtr != null && connectPtr != null && sendPtr != null && recvPtr !
     var connect = new NativeFunction(connectPtr, 'int', ['int', 'pointer', 'uint']);
 }
 
+class Utilities {
 
-/**
- * Returns hex from an ArrayBuffer object
- * @param {ArrayBuffer} array Array to work with
- * @param {Boolean} hex Whether to convert to hex or plain string
- */
-function getReadable(array: any, hex: any) {
-    var result = new Uint8Array(array.byteLength)
-    result.set(array, 0)
-    if (hex == false) {
-        var str = ''
-        for (var i = 0; i < result.length; i++) {
-            str += String.fromCharCode(result[i])
+    /**
+     * Returns hex from an ArrayBuffer object
+     * @param {ArrayBuffer} array Array to work with
+     * @param {Boolean} hex Whether to convert to hex or plain string
+     */
+    static getReadable(array: any, hex: any) {
+        var result = new Uint8Array(array.byteLength)
+        result.set(array, 0)
+        if (hex == false) {
+            var str = ''
+            for (var i = 0; i < result.length; i++) {
+                str += String.fromCharCode(result[i])
+            }
+            return str
         }
-        return str
-    }
-    else {
-        var hexStr = ''
-        for (var i = 0; i < result.length; i++) {
-            hexStr += result[i].toString(16)
+        else {
+            var hexStr = ''
+            for (var i = 0; i < result.length; i++) {
+                hexStr += result[i].toString(16)
+            }
+            return hexStr
         }
-        return hexStr
     }
-}
-/**
- * Returns a nice formatting of a function with parameters
- * @param {string} functionName The name of the function to format
- * @param {string[]} params The function parameters as strings
- */
-function formatFunction(functionName: any, params: any, retval: any) {
-    var result = ''
-    result += functionName
-    result += '('
-    for (var i = 0; i < params.length; i++) {
-        if (i != 0) {
-            result += ', '
+    /**
+     * Returns a nice formatting of a function with parameters
+     * @param {string} functionName The name of the function to format
+     * @param {string[]} params The function parameters as strings
+     */
+    static formatFunction(functionName: any, params: any, retval: any) {
+        var result = ''
+        result += functionName
+        result += '('
+        for (var i = 0; i < params.length; i++) {
+            if (i != 0) {
+                result += ', '
+            }
+            result += params[i]
         }
-        result += params[i]
+        result += ')'
+        if (retval) {
+            result += ' -> '
+            result += retval
+        }
+        return result
     }
-    result += ')'
-    if (retval) {
-        result += ' -> '
-        result += retval
-    }
-    return result
-}
-function replaceGadp() {
-    if (getaddrinfoPtr != null) {
-        Interceptor.replace(getaddrinfoPtr, new NativeCallback(function (name, service, req, pai) {
-            const nameStr = name.readUtf8String()
-            const newNamePtr = Memory.allocUtf8String("localhost")
-            console.log(formatFunction('getaddrinfo', [nameStr, service, req, pai], ""))
-            return getaddrinfoFunction(newNamePtr, service, req, pai)
-        }, 'int', ['pointer', 'pointer', 'pointer', 'pointer']))
-    }
-}
-function replaceConnect() {
-    if (connectPtr != null) {
-        Interceptor.replace(connectPtr, new NativeCallback(function (socket, address, addressLen) {
-            var endpoint = {
-                ip: '',
-                port: 0
-            }
-            var ip = []
-            const ipPtr = address.add(4)
-            const portPtr = address.add(2)
-            const port = ntohs(portPtr.readU16())
-            endpoint.port = port
-
-            if (port == 443) {
-                ipPtr.writeInt(inet_addr(Memory.allocUtf8String("10.0.1.9")));
-                console.log(formatFunction('connect', [socket, JSON.stringify(endpoint), addressLen], ""))
-            }
-
-            ip.push(ipPtr.add(0).readU8())
-            ip.push(ipPtr.add(1).readU8())
-            ip.push(ipPtr.add(2).readU8())
-            ip.push(ipPtr.add(3).readU8())
-            endpoint.ip = ip.join('.');
-
-            var result = connectFunction(socket, address, addressLen)
-            return result
-        }, 'int', ['int', 'pointer', 'int']))
-    }
-}
-function replaceSend() {
-    if (sendPtr != null) {
-        Interceptor.replace(sendPtr, new NativeCallback(function (fd, buf, len, flags) {
-            var buffer = buf.readByteArray(len)
-            var result = sendFunction(fd, buf, len, flags)
-            console.log(formatFunction('send', [fd, getReadable(buffer, false), len, flags], result))
-            return result
-        }, 'int', ['int', 'pointer', 'int', 'int']))
-    }
-}
-function replaceRecv() {
-    if (recvPtr != null) {
-        Interceptor.replace(recvPtr, new NativeCallback(function (fd, buf, len, flags) {
-            var result = recvFunction(fd, buf, len, flags)
-            if (result > -1) {
-                var buffer = buf.readByteArray(result)
-                console.log(formatFunction('recv', [fd, getReadable(buffer, false), len, flags], result))
-            }
-            else {
-                console.log(formatFunction('recv', [fd, null, len, flags], result))
-            }
-            return result
-        }, 'int', ['int', 'pointer', 'int', 'int']))
-    }
-}
 
 }
+
+export class Patcher {
+
+    public static PatchGadp(addrInfo: string) {
+        if (getaddrinfoPtr != null) {
+            Interceptor.replace(getaddrinfoPtr, new NativeCallback(function (name, service, req, pai) {
+                const nameStr = name.readUtf8String()
+                const newNamePtr = Memory.allocUtf8String(addrInfo)
+                console.log(Utilities.formatFunction('getaddrinfo', [nameStr, service, req, pai], ""))
+                return getaddrinfoFunction(newNamePtr, service, req, pai)
+            }, 'int', ['pointer', 'pointer', 'pointer', 'pointer']))
+        }
+    }
+    public static PatchConnect(newIP: string, ports = [443], isDebugging=false) {
+        if (connectPtr != null) {
+            Interceptor.replace(connectPtr, new NativeCallback(function (socket, address, addressLen) {
+                var endpoint = {
+                    ip: '',
+                    port: 0
+                }
+                var ip = []
+                const ipPtr = address.add(4)
+                const portPtr = address.add(2)
+                const port = ntohs(portPtr.readU16())
+                endpoint.port = port
+
+                if (ports.includes(port)) {
+                    ipPtr.writeInt(inet_addr(Memory.allocUtf8String(newIP)));
+                    if (isDebugging)
+                        console.log("[Socket->connect()]: " + newIP + ":" + endpoint.port)
+                }
+
+                var result = connectFunction(socket, address, addressLen)
+                return result
+            }, 'int', ['int', 'pointer', 'int']))
+        }
+    }
+    public static PatchSend() {
+        if (sendPtr != null) {
+            Interceptor.replace(sendPtr, new NativeCallback(function (fd, buf, len, flags) {
+                var buffer = buf.readByteArray(len)
+                var result = sendFunction(fd, buf, len, flags)
+                console.log(Utilities.formatFunction('send', [fd, Utilities.getReadable(buffer, false), len, flags], result))
+                return result
+            }, 'int', ['int', 'pointer', 'int', 'int']))
+        }
+    }
+    public static PatchRecv() {
+        if (recvPtr != null) {
+            Interceptor.replace(recvPtr, new NativeCallback(function (fd, buf, len, flags) {
+                var result = recvFunction(fd, buf, len, flags)
+                if (result > -1) {
+                    var buffer = buf.readByteArray(result)
+                    console.log(Utilities.formatFunction('recv', [fd, Utilities.getReadable(buffer, false), len, flags], result))
+                }
+                else {
+                    console.log(Utilities.formatFunction('recv', [fd, null, len, flags], result))
+                }
+                return result
+            }, 'int', ['int', 'pointer', 'int', 'int']))
+        }
+    }
+
+}
+
+
+
+    // const SocketFunctions = [
+    //     //'connect',
+    //     //'recv',
+    //     'send',
+    //     //'sendto',
+    //     //'read',
+    //     //'readfrom'
+    //     //'write'
+    // ]
+    // Process
+    //     .getModuleByName('libSystem.B.dylib')
+    //     .enumerateExports().filter(exp => exp.type === 'function' && SocketFunctions.some(prefix => exp.name.indexOf(prefix) === 0))
+    //     .forEach(exp => {
+    //         Interceptor.attach(exp.address, {
+    //             onEnter: function (args) {
+    //                 var fd = args[0].toInt32();
+    //                 var socktype = Socket.type(fd);
+    //                 //var data = args[1]
+    //                 //var size = args[2].toInt32();
+
+    //                 if (socktype !== 'tcp' && socktype !== 'tcp6')
+    //                     return;
+    //                 var address = Socket.peerAddress(fd);
+    //                 if (address === null)
+    //                     return;
+
+    //                 var data = args[1]
+    //                 var size = args[2].toInt32();
+    //                 var buffer = data.readByteArray(size);
+    //                 console.log(exp.name + "(" + fd + ")" + JSON.stringify(address) + " – " + size + " bytes (" + socktype + ")");
+    //                 if (buffer != null)
+    //                     console.log(hexdump(buffer, { offset: 0, length: 800, header: false, ansi: true }));
+
+    //             },
+    //             onLeave: function (retval) {
+    //             }
+    //         })
+    //     })
+    
+    exports = Patcher;
+    exports = Utilities;
